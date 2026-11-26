@@ -1,7 +1,9 @@
 import { wait, type Task } from '../core/scheduler';
 import { BT } from '../game/bulletTypes';
 import { TAU } from '../game/constants';
-import type { Game, PhaseDef } from '../game/game';
+import type { BossDef, PhaseDef } from '../game/defs';
+import type { Game } from '../game/game';
+import { S } from '../game/sprites';
 import { C } from '../game/palette';
 
 /**
@@ -21,7 +23,7 @@ export function registerPracticeBursts(g: Game): void {
 }
 
 function* opening(g: Game): Task {
-  g.sched.add(g.wander(220));
+  g.patternSched.add(g.wander(220));
   let k = 0;
   for (;;) {
     const b = g.boss;
@@ -55,7 +57,7 @@ function* grainNeverSown(g: Game): Task {
 }
 
 function* crowsForgotHome(g: Game): Task {
-  g.sched.add(g.wander(180, 60));
+  g.patternSched.add(g.wander(180, 60));
   let k = 0;
   for (;;) {
     const b = g.boss;
@@ -78,7 +80,7 @@ function* crowsForgotHome(g: Game): Task {
 }
 
 function* lanternsOnStillWater(g: Game): Task {
-  g.sched.add(g.wander(240, 80));
+  g.patternSched.add(g.wander(240, 80));
   let k = 0;
   for (;;) {
     const b = g.boss;
@@ -110,11 +112,33 @@ function* tenThousandUnremembered(g: Game): Task {
 }
 
 export const PRACTICE_PHASES: readonly PhaseDef[] = [
-  { elegy: null, hp: 2200, time: 30, run: opening },
-  { elegy: 'Practice Elegy “Grain That Was Never Sown”', hp: 3200, time: 40, run: grainNeverSown },
-  { elegy: 'Practice Elegy “Crows Who Forgot the Way Home”', hp: 3200, time: 40, run: crowsForgotHome },
-  { elegy: 'Practice Elegy “Lanterns on Still Water”', hp: 3400, time: 40, run: lanternsOnStillWater },
-  { elegy: 'Stress Test “Ten Thousand Unremembered”', hp: 1, time: 25, survival: true, run: tenThousandUnremembered },
+  { id: 'effigy.opening', elegy: null, hp: 2200, time: 30, run: opening },
+  { id: 'effigy.grain', elegy: 'Practice Elegy “Grain That Was Never Sown”', hp: 3200, time: 40, run: grainNeverSown },
+  { id: 'effigy.crows', elegy: 'Practice Elegy “Crows Who Forgot the Way Home”', hp: 3200, time: 40, run: crowsForgotHome },
+  { id: 'effigy.lanterns', elegy: 'Practice Elegy “Lanterns on Still Water”', hp: 3400, time: 40, run: lanternsOnStillWater },
+  { id: 'effigy.stress', elegy: 'Stress Test “Ten Thousand Unremembered”', hp: 1, time: 25, survival: true, run: tenThousandUnremembered },
 ];
 
 export const STRESS_PHASE_INDEX = 4;
+
+export const TRAINING_EFFIGY: BossDef = {
+  id: 'effigy',
+  name: 'Training Effigy',
+  title: 'A Scarecrow Stuffed With Practice',
+  sprite: S.effigy,
+  hitR: 30,
+  phases: PRACTICE_PHASES,
+};
+
+/** Practice script: the effigy forever. With `stressOnly`, just the stress test, repeated. */
+export function practiceScript(stressOnly = false) {
+  return function* (g: Game): Task {
+    registerPracticeBursts(g);
+    g.setMusic('stage1');
+    const def = stressOnly ? { ...TRAINING_EFFIGY, phases: [PRACTICE_PHASES[STRESS_PHASE_INDEX]] } : TRAINING_EFFIGY;
+    for (;;) {
+      yield* g.runBoss(def);
+      yield* wait(60);
+    }
+  };
+}

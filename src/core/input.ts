@@ -19,6 +19,10 @@ export class Input {
   private skillQueued = false;
   private pauseQueued = false;
   private confirmQueued = false;
+  private advanceQueued = false;
+  private downX = 0;
+  private downY = 0;
+  private downT = 0;
   private padPrev: boolean[] = [];
   /** True once a touch has been seen: enables auto-fire and on-screen controls. */
   touchMode = false;
@@ -48,7 +52,10 @@ export class Input {
     if (e.code === 'KeyX') this.bombQueued = true;
     if (e.code === 'KeyC') this.skillQueued = true;
     if (e.code === 'Escape' || e.code === 'KeyP') this.pauseQueued = true;
-    if (e.code === 'KeyZ' || e.code === 'Enter' || e.code === 'Space') this.confirmQueued = true;
+    if (e.code === 'KeyZ' || e.code === 'Enter' || e.code === 'Space') {
+      this.confirmQueued = true;
+      this.advanceQueued = true;
+    }
   };
 
   private onPointerDown = (e: PointerEvent) => {
@@ -61,8 +68,9 @@ export class Input {
     }
     if (this.dragId === null) {
       this.dragId = e.pointerId;
-      this.lastX = e.clientX;
-      this.lastY = e.clientY;
+      this.lastX = this.downX = e.clientX;
+      this.lastY = this.downY = e.clientY;
+      this.downT = performance.now();
     } else if (e.pointerType !== 'mouse') {
       this.focusHolds.add(e.pointerId);
     }
@@ -80,7 +88,12 @@ export class Input {
   };
 
   private onPointerUp = (e: PointerEvent) => {
-    if (e.pointerId === this.dragId) this.dragId = null;
+    if (e.pointerId === this.dragId) {
+      this.dragId = null;
+      // A short, nearly stationary touch is a tap: it advances dialogue without disturbing drags.
+      const moved = Math.hypot(e.clientX - this.downX, e.clientY - this.downY);
+      if (moved < 12 && performance.now() - this.downT < 300) this.advanceQueued = true;
+    }
     this.focusHolds.delete(e.pointerId);
   };
 
@@ -119,7 +132,7 @@ export class Input {
 
   /** Discard edge presses (used when (un)pausing so a press doesn't leak into play). */
   flush(): void {
-    this.bombQueued = this.skillQueued = this.confirmQueued = false;
+    this.bombQueued = this.skillQueued = this.confirmQueued = this.advanceQueued = false;
     this.accX = this.accY = 0;
   }
 
@@ -134,6 +147,7 @@ export class Input {
     let focus = k.has('ShiftLeft') || k.has('ShiftRight');
     let bomb = this.bombQueued;
     let skill = this.skillQueued;
+    let skipHeld = k.has('ControlLeft') || k.has('ControlRight');
 
     const pads = navigator.getGamepads?.() ?? [];
     for (const pad of pads) {
@@ -158,7 +172,8 @@ export class Input {
       if (edge(1)) bomb = true;
       if (edge(2) || edge(3)) skill = true;
       if (edge(9)) this.pauseQueued = true;
-      if (edge(0)) this.confirmQueued = true;
+      if (edge(0)) this.confirmQueued = this.advanceQueued = true;
+      if (btn(8)) skipHeld = true;
       break;
     }
 
@@ -171,8 +186,10 @@ export class Input {
     if (this.touchMode) shoot = true;
     focus ||= this.focusToggle || this.focusHolds.size > 0;
 
+    const advance = this.advanceQueued;
     this.bombQueued = false;
     this.skillQueued = false;
-    return { mx, my, tx, ty, shoot, focus, bomb, skill };
+    this.advanceQueued = false;
+    return { mx, my, tx, ty, shoot, focus, bomb, skill, advance, skip: skipHeld };
   }
 }

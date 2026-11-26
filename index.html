@@ -22,25 +22,28 @@
       <section id="panel" class="hud">
         <h1 class="logo">Vespertine</h1>
         <p class="logo-sub">Elegy of the Unremembered</p>
+        <p class="diff-label" data-k="diff"></p>
         <dl class="stats">
           <dt>Hi-Score</dt><dd data-k="hi">0</dd>
           <dt>Score</dt><dd data-k="score">0</dd>
-          <dt>Candles</dt><dd data-k="lives" class="pips life"></dd>
-          <dt>Litanies</dt><dd data-k="bombs" class="pips bomb"></dd>
-          <dt>Ember</dt><dd data-k="power">4.00</dd>
+          <dt>Candles</dt><dd><span data-k="lives" class="pips life"></span> <small data-k="lifeFrags" class="frag"></small></dd>
+          <dt>Litanies</dt><dd><span data-k="bombs" class="pips bomb"></span> <small data-k="bombFrags" class="frag"></small></dd>
+          <dt>Ember</dt><dd data-k="power">1.00</dd>
+          <dt>Point</dt><dd data-k="pointValue">10,000</dd>
           <dt>Graze</dt><dd data-k="graze">0</dd>
         </dl>
         <div class="meter"><span>Vigil</span><div class="bar"><i data-k="vigil"></i></div></div>
         <p class="keys">
-          Arrows move · <b>Z</b> shoot · <b>Shift</b> focus<br />
+          Arrows move · <b>Z</b> shoot / talk · <b>Shift</b> focus<br />
           <b>X</b> Litany · <b>C</b> Vigil · <b>Esc</b> pause<br />
-          <b>1–5</b> jump to phase · <b>`</b> stats · <b>M</b> mute
+          <b>Ctrl</b> skip dialogue · <b>M</b> mute · <b>`</b> stats
         </p>
       </section>
 
       <!-- Portrait top strip -->
       <section id="strip" class="hud">
         <span data-k="score">0</span>
+        <span data-k="power" class="strip-power">1.00</span>
         <span data-k="lives" class="pips life"></span>
         <span data-k="bombs" class="pips bomb"></span>
         <button id="pause-btn" aria-label="Pause">❚❚</button>
@@ -54,22 +57,35 @@
           <button id="btn-skill" class="ctl">Vigil</button>
           <button id="btn-bomb" class="ctl">Litany</button>
         </div>
-        <p class="hint">Drag anywhere to move · second finger also focuses</p>
+        <p class="hint">Drag anywhere to move · tap to talk · second finger focuses</p>
       </section>
 
       <!-- Boss UI, positioned over the field -->
       <section id="boss">
-        <div class="boss-row"><span class="boss-name">Training Effigy</span><span class="boss-timer" data-k="timer"></span></div>
+        <div class="boss-row"><span class="boss-name" data-k="bossName"></span><span class="boss-stars" data-k="bossStars"></span><span class="boss-timer" data-k="timer"></span></div>
         <div class="hp"><i data-k="hp"></i></div>
         <div class="elegy" data-k="elegy"></div>
       </section>
-      <div id="banner"></div>
-      <div id="debug"></div>
+
+      <!-- Field overlays (positioned over the playfield) -->
+      <div id="field-ui">
+        <div id="banner"></div>
+        <div id="stage-card"><p class="sc-num"></p><h2 class="sc-title"></h2><p class="sc-poem"></p></div>
+        <div id="boss-card"><p class="bc-title"></p><h2 class="bc-name"></h2></div>
+        <div id="cutin"><canvas></canvas></div>
+        <div id="capture"></div>
+        <div id="dialogue">
+          <canvas class="portrait left"></canvas>
+          <canvas class="portrait right"></canvas>
+          <div class="box"><p class="speaker"></p><p class="text"></p><span class="more">▾</span></div>
+        </div>
+        <div id="debug"></div>
+      </div>
 
       <!-- Screens -->
       <section id="title" class="screen show">
         <div class="title-inner">
-          <p class="eyebrow">M0 · Technical Prototype</p>
+          <p class="eyebrow">M1 · Stage 1 vertical slice</p>
           <h1>Vespertine</h1>
           <p class="sub">Elegy of the Unremembered</p>
           <blockquote>In the hundredth year of the Long Dusk,<br />the sun still has not set.</blockquote>
@@ -77,20 +93,55 @@
           <p class="who">Sayo Kagari · Keeper of the Last Lantern</p>
         </div>
       </section>
+
+      <section id="difficulty" class="screen">
+        <div class="menu wide">
+          <h2>How deep is the dusk?</h2>
+          <button data-diff="0"><b>Gentle</b><span>For those new to the dark. Five candles; one continue still reaches the good ending.</span></button>
+          <button data-diff="1"><b>Dusk</b><span>The intended experience.</span></button>
+          <button data-diff="2"><b>Midnight</b><span>Denser, faster, less forgiving.</span></button>
+          <button data-diff="3" disabled><b>Requiem</b><span>Unlocked after a good ending.</span></button>
+          <button data-act="back" class="quiet">Back</button>
+        </div>
+      </section>
+
       <section id="pause" class="screen">
         <div class="menu">
           <h2>Paused</h2>
           <button data-act="resume">Resume</button>
-          <button data-act="restart">Restart</button>
+          <button data-act="restart">Restart stage</button>
           <button data-act="mute">Sound: On</button>
           <button data-act="flash">Reduce flashing: Off</button>
+          <button data-act="title" class="quiet">Quit to title</button>
         </div>
       </section>
+
       <section id="over" class="screen">
         <div class="menu">
           <h2>The candle gutters.</h2>
+          <p class="over-q">Will you remember?</p>
           <p class="over-score"></p>
-          <button data-act="restart">Light it again</button>
+          <button data-act="continue">Continue <span class="credits"></span></button>
+          <p class="over-note">Continuing leads to a different ending.</p>
+          <button data-act="giveup" class="quiet">Let it go out</button>
+        </div>
+      </section>
+
+      <section id="clear" class="screen">
+        <div class="menu wide">
+          <h2>Stage Clear</h2>
+          <dl class="results"></dl>
+          <button data-act="vigil">Continue</button>
+        </div>
+      </section>
+
+      <section id="interlude" class="screen">
+        <div class="interlude-inner">
+          <div class="candle"><i></i></div>
+          <p class="il-title"></p>
+          <div class="il-lines"></div>
+          <p class="il-end">End of the Stage 1 vertical slice. The road continues upward in a later build.</p>
+          <button data-act="title" class="quiet">Return to title</button>
         </div>
       </section>
     </div>

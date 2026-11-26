@@ -289,3 +289,56 @@ export class FxPool {
     this.n = 0;
   }
 }
+
+/** Items: power, points, fragments and the small stars that cancelled bullets turn into. */
+export class ItemPool {
+  readonly cap: number;
+  n = 0;
+  readonly x: Float32Array;
+  readonly y: Float32Array;
+  readonly vx: Float32Array;
+  readonly vy: Float32Array;
+  readonly type: Uint8Array;
+  /** 1 = flying toward the player. */
+  readonly homing: Uint8Array;
+  readonly age: Int32Array;
+
+  constructor(cap: number) {
+    this.cap = cap;
+    this.x = new Float32Array(cap);
+    this.y = new Float32Array(cap);
+    this.vx = new Float32Array(cap);
+    this.vy = new Float32Array(cap);
+    this.type = new Uint8Array(cap);
+    this.homing = new Uint8Array(cap);
+    this.age = new Int32Array(cap);
+  }
+
+  spawn(x: number, y: number, type: number, vx = 0, vy = -2.4, homing = 0): void {
+    if (this.n >= this.cap) return;
+    const i = this.n++;
+    this.x[i] = x;
+    this.y[i] = y;
+    this.vx[i] = vx;
+    this.vy[i] = vy;
+    this.type[i] = type;
+    this.homing[i] = homing;
+    this.age[i] = 0;
+  }
+
+  remove(i: number): void {
+    const j = --this.n;
+    if (i === j) return;
+    this.x[i] = this.x[j];
+    this.y[i] = this.y[j];
+    this.vx[i] = this.vx[j];
+    this.vy[i] = this.vy[j];
+    this.type[i] = this.type[j];
+    this.homing[i] = this.homing[j];
+    this.age[i] = this.age[j];
+  }
+
+  clear(): void {
+    this.n = 0;
+  }
+}

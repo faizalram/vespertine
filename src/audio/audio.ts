@@ -3,10 +3,28 @@
  * `playTrack` is the seam where a real soundtrack can be slotted in later.
  */
 
-export type Sfx = 'shot' | 'graze' | 'death' | 'bomb' | 'declare' | 'phaseEnd' | 'vigil' | 'bossHit' | 'select';
+export type Sfx =
+  | 'shot' | 'graze' | 'death' | 'bomb' | 'declare' | 'phaseEnd' | 'vigil' | 'bossHit' | 'select'
+  | 'enemyHit' | 'enemyDie' | 'item' | 'extend' | 'bombGet' | 'capture' | 'captureFail' | 'bossDefeat' | 'talk';
 
 const MIN_GAP: Record<Sfx, number> = {
   shot: 0.07, graze: 0.035, death: 0.3, bomb: 0.3, declare: 0.3, phaseEnd: 0.3, vigil: 0.2, bossHit: 0.09, select: 0.05,
+  enemyHit: 0.08, enemyDie: 0.05, item: 0.04, extend: 0.5, bombGet: 0.5, capture: 0.5, captureFail: 0.5, bossDefeat: 1, talk: 0.05,
+};
+
+interface Song {
+  bpm: number;
+  chords: number[][];
+  arp: boolean;
+  /** Bass on every eighth instead of every quarter. */
+  drive: boolean;
+  lead: boolean;
+}
+
+const SONGS: Record<string, Song> = {
+  title: { bpm: 60, chords: [[57, 60, 64], [53, 57, 60], [55, 59, 62], [52, 56, 59]], arp: false, drive: false, lead: false },
+  stage1: { bpm: 92, chords: [[57, 60, 64], [53, 57, 60], [50, 53, 57], [52, 56, 59]], arp: true, drive: false, lead: true },
+  boss1: { bpm: 126, chords: [[50, 53, 57], [46, 50, 53], [48, 52, 55], [45, 49, 52]], arp: true, drive: true, lead: true },
 };
 
 export class AudioEngine {
@@ -64,11 +82,22 @@ export class AudioEngine {
     void this.ctx?.resume();
   }
 
-  playTrack(name: 'stage1' | 'title'): void {
-    if (!this.ctx) return;
+  private currentTrack = '';
+
+  playTrack(name: string): void {
+    if (!this.ctx || name === this.currentTrack) return;
+    const song = SONGS[name];
+    if (!song) return;
+    this.currentTrack = name;
     this.music?.stop();
-    this.music = new ProceduralMusic(this.ctx, this.musicBus, name === 'title' ? 66 : 92, name === 'stage1');
+    this.music = new ProceduralMusic(this.ctx, this.musicBus, song);
     this.music.start();
+  }
+
+  stopMusic(): void {
+    this.music?.stop();
+    this.music = null;
+    this.currentTrack = '';
   }
 
   play(name: Sfx): void {
@@ -112,6 +141,42 @@ export class AudioEngine {
         break;
       case 'select':
         this.tone(now, 'triangle', 880, 990, 0.08, 0.1);
+        break;
+      case 'talk':
+        this.tone(now, 'triangle', 660, 640, 0.05, 0.05);
+        break;
+      case 'enemyHit':
+        this.noiseHit(now, 0.025, 2200, 0.035, 'bandpass');
+        break;
+      case 'enemyDie':
+        // A soft paper tear.
+        this.noiseHit(now, 0.12, 3000, 0.12, 'bandpass');
+        this.tone(now, 'triangle', 520, 260, 0.12, 0.06);
+        break;
+      case 'item':
+        this.tone(now, 'sine', 1500, 1700, 0.05, 0.035);
+        break;
+      case 'extend':
+        this.bell(now, 523.25, 0.14, 1.4);
+        this.bell(now + 0.1, 659.25, 0.14, 1.4);
+        this.bell(now + 0.2, 1046.5, 0.12, 1.8);
+        break;
+      case 'bombGet':
+        this.bell(now, 783.99, 0.12, 1.2);
+        this.bell(now + 0.1, 1174.7, 0.1, 1.4);
+        break;
+      case 'capture':
+        this.bell(now, 587.33, 0.16, 2.2);
+        this.bell(now + 0.15, 880, 0.14, 2.4);
+        this.bell(now + 0.3, 1174.7, 0.12, 2.8);
+        break;
+      case 'captureFail':
+        this.bell(now, 311.13, 0.12, 1.8);
+        break;
+      case 'bossDefeat':
+        this.tone(now, 'sine', 160, 30, 1.6, 0.4);
+        this.noiseHit(now, 1.2, 700, 0.25, 'lowpass');
+        this.bell(now + 0.3, 392, 0.16, 3.5);
         break;
     }
   }
@@ -168,14 +233,7 @@ class ProceduralMusic {
   private nextTime = 0;
   private readonly out: GainNode;
 
-  private static readonly CHORDS: number[][] = [
-    [57, 60, 64], // Am
-    [53, 57, 60], // F
-    [50, 53, 57], // Dm
-    [52, 56, 59], // E
-  ];
-
-  constructor(private readonly ctx: AudioContext, bus: GainNode, private readonly bpm: number, private readonly arp: boolean) {
+  constructor(private readonly ctx: AudioContext, bus: GainNode, private readonly song: Song) {
     this.out = ctx.createGain();
     this.out.gain.value = 1;
     const lp = ctx.createBiquadFilter();
@@ -202,7 +260,7 @@ class ProceduralMusic {
   }
 
   private schedule(): void {
-    const sixteenth = 60 / this.bpm / 4;
+    const sixteenth = 60 / this.song.bpm / 4;
     while (this.nextTime < this.ctx.currentTime + 0.25) {
       this.playStep(this.step, this.nextTime, sixteenth);
       this.nextTime += sixteenth;
@@ -212,20 +270,23 @@ class ProceduralMusic {
 
   private playStep(step: number, t: number, sixteenth: number): void {
     const bar = Math.floor(step / 16) % 8;
-    const chord = ProceduralMusic.CHORDS[Math.floor(bar / 2) % 4];
+    const song = this.song;
+    const chord = song.chords[Math.floor(bar / 2) % song.chords.length];
     const inBar = step % 16;
     if (inBar === 0 && bar % 2 === 0) {
       for (const n of chord) this.voice('sawtooth', ProceduralMusic.hz(n), t, sixteenth * 32, 0.035, 0.6, 7);
     }
-    if (inBar % 4 === 0) {
-      this.voice('triangle', ProceduralMusic.hz(chord[0] - 24), t, sixteenth * 3.5, 0.16, 0.01, 0);
+    const bassEvery = song.drive ? 2 : 4;
+    if (inBar % bassEvery === 0) {
+      const oct = song.drive && inBar % 4 === 2 ? 12 : 0;
+      this.voice('triangle', ProceduralMusic.hz(chord[0] - 24 + oct), t, sixteenth * (bassEvery - 0.5), 0.16, 0.01, 0);
     }
-    if (this.arp) {
+    if (song.arp) {
       const pattern = [0, 1, 2, 1, 0, 2, 1, 2];
       const note = chord[pattern[inBar % 8]] + (inBar >= 8 ? 12 : 0);
       if (inBar % 2 === 0) this.voice('triangle', ProceduralMusic.hz(note + 12), t, sixteenth * 2.5, 0.06, 0.005, 0);
       // Sparse melody tone on the last bar of each phrase.
-      if (bar % 2 === 1 && (inBar === 6 || inBar === 12)) {
+      if (song.lead && bar % 2 === 1 && (inBar === 6 || inBar === 12)) {
         this.voice('sine', ProceduralMusic.hz(chord[2] + 24), t, sixteenth * 6, 0.05, 0.02, 0);
       }
     }

@@ -79,6 +79,11 @@ body.title-screen #boss {
   display: none !important;
 }
 
+body.menu-open #controls,
+body.menu-open #field-ui {
+  visibility: hidden;
+}
+
 #panel {
   padding: 4px 4px 0 8px;
   border-left: 1px solid var(--line);
@@ -296,24 +301,10 @@ body.title-screen #boss {
   min-height: 1em;
 }
 
-#banner {
-  position: absolute;
-  opacity: 0;
-  text-align: center;
-  font-style: italic;
-  font-size: 22px;
-  color: #ffe9ee;
-  text-shadow: 0 0 14px rgba(255, 120, 160, 0.8), 0 1px 3px #000;
-  transition: opacity 0.4s;
-  padding: 0 12px;
-}
-
-#banner.show {
-  opacity: 1;
-}
-
 #debug {
   position: absolute;
+  left: 4px;
+  bottom: 4px;
   font: 11px/1.35 ui-monospace, Menlo, Consolas, monospace;
   color: #b6f0c0;
   background: rgba(0, 0, 0, 0.45);
@@ -335,7 +326,7 @@ body.title-screen #boss {
   display: none;
   align-items: center;
   justify-content: center;
-  background: radial-gradient(ellipse at 50% 40%, rgba(12, 9, 18, 0.35), rgba(12, 9, 18, 0.85));
+  background: radial-gradient(ellipse at 50% 40%, rgba(12, 9, 18, 0.55), rgba(12, 9, 18, 0.92));
   pointer-events: auto;
 }
 
@@ -443,6 +434,444 @@ body.title-screen #boss {
 
 .over-score {
   margin: 0 0 10px;
+  color: var(--muted);
+  font-size: 17px;
+}
+
+
+/* ───────────── Field overlays ───────────── */
+
+#field-ui {
+  position: absolute;
+  overflow: hidden;
+  --u: 1;
+}
+
+#field-ui > * {
+  position: absolute;
+}
+
+#banner {
+  left: 0;
+  right: 0;
+  top: 32%;
+  opacity: 0;
+  text-align: center;
+  font-style: italic;
+  font-size: calc(var(--u) * 19px);
+  color: #ffe9ee;
+  text-shadow: 0 0 14px rgba(255, 120, 160, 0.8), 0 1px 3px #000;
+  transition: opacity 0.4s;
+  padding: 0 12px;
+}
+
+#banner.show {
+  opacity: 1;
+}
+
+#stage-card {
+  left: 0;
+  right: 0;
+  top: 30%;
+  text-align: center;
+  opacity: 0;
+  transition: opacity 1.2s;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.8);
+}
+
+#stage-card.show {
+  opacity: 1;
+}
+
+.sc-num {
+  margin: 0;
+  letter-spacing: 0.4em;
+  font-size: calc(var(--u) * 13px);
+  color: var(--muted);
+  text-transform: uppercase;
+}
+
+.sc-title {
+  margin: 6px 0 14px;
+  font-weight: 600;
+  font-size: calc(var(--u) * 28px);
+  color: var(--amber-soft);
+  letter-spacing: 0.04em;
+}
+
+.sc-poem {
+  margin: 0;
+  font-style: italic;
+  font-size: calc(var(--u) * 17px);
+  line-height: 1.6;
+  color: var(--paper);
+}
+
+#boss-card {
+  right: 6%;
+  top: 22%;
+  text-align: right;
+  opacity: 0;
+  transform: translateX(20px);
+  transition: opacity 0.6s, transform 0.6s;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.9);
+}
+
+#boss-card.show {
+  opacity: 1;
+  transform: none;
+}
+
+.bc-title {
+  margin: 0;
+  font-style: italic;
+  font-size: calc(var(--u) * 15px);
+  color: #ffd3dc;
+}
+
+.bc-name {
+  margin: 0;
+  font-weight: 600;
+  font-size: calc(var(--u) * 30px);
+  letter-spacing: 0.06em;
+  color: #fff3f6;
+}
+
+#cutin {
+  right: -8%;
+  top: 14%;
+  width: 46%;
+  opacity: 0;
+  pointer-events: none;
+}
+
+#cutin canvas {
+  width: 100%;
+  height: auto;
+  display: block;
+  filter: drop-shadow(0 0 18px rgba(255, 120, 160, 0.5));
+}
+
+#cutin.play {
+  animation: cutin 1.6s ease-out forwards;
+}
+
+@keyframes cutin {
+  0% {
+    opacity: 0;
+    transform: translate(40%, 0);
+  }
+  20% {
+    opacity: 0.5;
+    transform: translate(0, 0);
+  }
+  75% {
+    opacity: 0.4;
+    transform: translate(-6%, 0);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-30%, 0);
+  }
+}
+
+#capture {
+  left: 0;
+  right: 0;
+  top: 18%;
+  text-align: center;
+  font-size: calc(var(--u) * 17px);
+  opacity: 0;
+  transition: opacity 0.4s;
+  text-shadow: 0 1px 6px #000;
+}
+
+#capture.show {
+  opacity: 1;
+}
+
+#capture b {
+  display: block;
+  font-size: calc(var(--u) * 22px);
+  font-weight: 600;
+  color: var(--amber-soft);
+}
+
+#capture.fail b {
+  color: var(--muted);
+}
+
+/* Dialogue */
+
+#dialogue {
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 100%;
+  display: none;
+}
+
+#dialogue.show {
+  display: block;
+}
+
+.portrait {
+  position: absolute;
+  bottom: 0;
+  width: 58%;
+  height: auto;
+  transition: filter 0.25s, transform 0.25s, opacity 0.25s;
+}
+
+.portrait.left {
+  left: -6%;
+}
+
+.portrait.right {
+  right: -6%;
+  transform: scaleX(-1);
+}
+
+.portrait.dim {
+  filter: brightness(0.45) saturate(0.6);
+}
+
+.portrait.left.dim {
+  transform: translateY(4%);
+}
+
+.portrait.right.dim {
+  transform: scaleX(-1) translateY(4%);
+}
+
+#dialogue .box {
+  position: absolute;
+  left: 3%;
+  right: 3%;
+  bottom: 3%;
+  min-height: 24%;
+  padding: calc(var(--u) * 10px) calc(var(--u) * 14px);
+  background: linear-gradient(180deg, rgba(20, 14, 30, 0.88), rgba(12, 9, 18, 0.94));
+  border: 1px solid rgba(255, 211, 138, 0.25);
+  border-radius: calc(var(--u) * 10px);
+}
+
+#dialogue .speaker {
+  margin: 0 0 4px;
+  font-size: calc(var(--u) * 14px);
+  letter-spacing: 0.08em;
+  color: var(--amber-soft);
+}
+
+#dialogue .speaker.right {
+  color: #ffd3dc;
+  text-align: right;
+}
+
+#dialogue .text {
+  margin: 0;
+  font-size: calc(var(--u) * 17px);
+  line-height: 1.4;
+  color: var(--paper);
+}
+
+#dialogue .more {
+  position: absolute;
+  right: calc(var(--u) * 12px);
+  bottom: calc(var(--u) * 6px);
+  font-size: calc(var(--u) * 13px);
+  color: var(--amber-soft);
+  opacity: 0;
+  animation: breathe 1.4s ease-in-out infinite;
+}
+
+#dialogue .more.show {
+  opacity: 1;
+}
+
+/* HUD extras */
+
+.diff-label {
+  margin: -14px 0 18px;
+  font-size: 13px;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  color: var(--rose);
+}
+
+.frag {
+  color: var(--dim);
+  font-size: 13px;
+}
+
+.strip-power {
+  color: var(--amber-soft);
+}
+
+.boss-stars {
+  flex: 1;
+  padding-left: 10px;
+  color: #ffd3dc;
+  letter-spacing: 0.1em;
+  font-size: 13px;
+}
+
+/* Menus */
+
+.menu.wide {
+  max-width: 460px;
+  width: 100%;
+}
+
+.menu.wide button {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+  gap: 2px;
+}
+
+.menu.wide button b {
+  font-weight: 600;
+  font-size: 20px;
+  color: var(--amber-soft);
+}
+
+.menu.wide button span {
+  font-size: 15px;
+  color: var(--muted);
+}
+
+.menu button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.menu button.quiet {
+  background: none;
+  border-color: transparent;
+  color: var(--muted);
+  font-size: 17px;
+  align-items: center;
+}
+
+.over-q {
+  margin: -6px 0 6px;
+  font-style: italic;
+  font-size: 19px;
+}
+
+.over-note {
+  margin: -4px 0 4px;
+  font-size: 14px;
+  color: var(--dim);
+}
+
+.credits {
+  color: var(--muted);
+  font-size: 16px;
+}
+
+.results {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px 20px;
+  margin: 0 0 18px;
+  font-size: 18px;
+}
+
+.results dt {
+  color: var(--muted);
+  text-align: left;
+}
+
+.results dd {
+  margin: 0;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Vigil interlude */
+
+#interlude {
+  background: #07050b;
+}
+
+.interlude-inner {
+  max-width: 460px;
+  padding: 0 28px;
+  text-align: center;
+}
+
+.candle {
+  width: 10px;
+  height: 46px;
+  margin: 0 auto 28px;
+  background: linear-gradient(#efe6d6, #b8ab98);
+  border-radius: 2px;
+  position: relative;
+}
+
+.candle i {
+  position: absolute;
+  left: 50%;
+  top: -22px;
+  width: 12px;
+  height: 20px;
+  margin-left: -6px;
+  border-radius: 50% 50% 40% 40%;
+  background: radial-gradient(ellipse at 50% 70%, #fff6d8, #ffb347 45%, rgba(255, 120, 40, 0) 75%);
+  box-shadow: 0 0 30px 10px rgba(255, 160, 60, 0.25);
+  animation: flicker 2.3s infinite;
+}
+
+@keyframes flicker {
+  0%, 100% { transform: scale(1, 1); opacity: 1; }
+  30% { transform: scale(0.92, 1.06) translateX(-1px); opacity: 0.9; }
+  55% { transform: scale(1.04, 0.95) translateX(1px); opacity: 1; }
+  80% { transform: scale(0.96, 1.03); opacity: 0.85; }
+}
+
+.il-title {
+  margin: 0 0 22px;
+  font-size: 14px;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+
+.il-lines p {
+  margin: 0 0 14px;
+  font-style: italic;
+  font-size: 21px;
+  line-height: 1.5;
+  opacity: 0;
+  transform: translateY(6px);
+  transition: opacity 1.6s, transform 1.6s;
+}
+
+.il-lines p.show {
+  opacity: 1;
+  transform: none;
+}
+
+.il-end {
+  margin: 34px 0 8px;
+  font-size: 14px;
+  color: var(--dim);
+  opacity: 0;
+  transition: opacity 1.2s;
+}
+
+.il-end.show {
+  opacity: 1;
+}
+
+#interlude button {
+  pointer-events: auto;
+  padding: 10px 18px;
+  border: none;
+  background: none;
   color: var(--muted);
   font-size: 17px;
 }

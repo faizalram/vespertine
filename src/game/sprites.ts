@@ -17,6 +17,21 @@ export const S = {
   effigy: 14,
   white: 15,
   shard: 16,
+  // Enemies & bosses
+  chaff: 17,
+  crow: 18,
+  fieldLantern: 19,
+  matron: 20,
+  hoshiko: 21,
+  // Items
+  itemPower: 22,
+  itemPowerBig: 23,
+  itemPoint: 24,
+  itemLife: 25,
+  itemBomb: 26,
+  itemStar: 27,
+  marker: 28,
+  feather: 29,
 } as const;
 
 export type SpriteId = (typeof S)[keyof typeof S];

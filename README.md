@@ -2,7 +2,11 @@
 
 A melancholic 2.5D bullet-hell shooter for desktop and mobile browsers. Design: [`SPEC.md`](SPEC.md).
 
-**Current milestone: M0 technical prototype.** Sayo Kagari against a Training Effigy that cycles through four practice patterns and a 2,000-bullet stress test, over a 3D rice-terrace background.
+**Current milestone: M1, the Stage 1 vertical slice.** Sayo Kagari plays *Fields of Unharvested Names* from start to finish:
+- enemy waves and the Crow Matron midboss
+- Hoshiko Aze with 5 phases (3 Elegies), plus pre- and post-fight dialogue
+- items and power, Elegy captures, extra lives, continues
+- difficulty select, the stage clear screen and Sayo's first Vigil interlude
 
 ## Run
 
@@ -22,19 +26,28 @@ npm run build      # static build in dist/
 | Focus | Shift (hold) | LB / RB / LT | Focus button (toggle) or a second finger |
 | Litany (bomb) | X | B | Litany button |
 | Vigil (skill) | C | X / Y | Vigil button |
+| Advance dialogue | Z / Enter | A | Tap |
 | Pause | Esc / P | Start | ❚❚ |
 
-Debug keys: `1`–`5` jump to a boss phase, `` ` `` toggles stats, `M` mutes.
+`Ctrl` (or tapping repeatedly) fast-forwards dialogue. `` ` `` toggles stats, `M` mutes.
 
-URL flags: `?stress` (start at the stress test), `?phase=N`, `?god` (invincible), `?debug` (stats overlay).
+URL flags (for testing):
+- `?midboss` / `?boss`: start at that point of Stage 1
+- `?diff=0..3`: skip the difficulty screen
+- `?god`: invincible
+- `?debug`: stats overlay
+- `?practice`: the M0 Training Effigy
+- `?stress`: the 2,000-bullet stress test
+
+During a boss fight, `1`–`5` jump to a phase.
 
 ## Layout
 
 ```
 src/core      loop helpers: seeded RNG, coroutine scheduler, input
 src/game      deterministic simulation (no rendering imports)
-src/content   boss patterns written as generator coroutines
+src/content   stage scripts, enemy behaviours, boss patterns and dialogue (generator coroutines)
 src/render    Three.js: procedural vector atlas, instanced sprites, 3D background
 src/audio     WebAudio-synthesised SFX and procedural music (placeholder)
-src/ui        responsive layout (desktop panel / portrait thumb zone), DOM HUD
+src/ui        responsive layout, DOM HUD, dialogue, vector portraits
 ```

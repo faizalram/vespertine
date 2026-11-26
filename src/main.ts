@@ -1,18 +1,22 @@
 import './style.css';
-import { AudioEngine } from './audio/audio';
-import { PRACTICE_PHASES, STRESS_PHASE_INDEX, registerPracticeBursts } from './content/practice';
+import { AudioEngine, type Sfx } from './audio/audio';
+import { practiceScript } from './content/practice';
+import { STAGE1_INTERLUDE, stage1 } from './content/stage1';
 import { Input } from './core/input';
 import { TICK } from './game/constants';
-import { EMPTY_INPUT, Game } from './game/game';
+import { DIFFICULTIES, type DifficultyId } from './game/defs';
+import { EMPTY_INPUT, Game, type GameOptions } from './game/game';
 import { Renderer } from './render/renderer';
 import { Hud } from './ui/hud';
 import { computeLayout, readSafeInsets, type Layout } from './ui/layout';
 
-type State = 'title' | 'play' | 'paused' | 'over';
+type State = 'title' | 'difficulty' | 'play' | 'paused' | 'over' | 'clear' | 'interlude';
 
 const params = new URLSearchParams(location.search);
-const START_PHASE = params.has('stress') ? STRESS_PHASE_INDEX : Number(params.get('phase') ?? 0) || 0;
 const GOD = params.has('god');
+const PRACTICE = params.has('practice') || params.has('stress');
+const START_AT: GameOptions['startAt'] = params.has('boss') ? 'boss' : params.has('midboss') ? 'midboss' : 'start';
+const FORCED_DIFF = params.has('diff') ? (Math.max(0, Math.min(3, Number(params.get('diff')))) as DifficultyId) : null;
 
 const $ = <T extends HTMLElement = HTMLElement>(sel: string) => document.querySelector(sel) as T;
 const canvas = $<HTMLCanvasElement>('#gl');
@@ -23,24 +27,48 @@ const hud = new Hud();
 
 let state: State = 'title';
 let game: Game | null = null;
+let difficulty: DifficultyId = 1;
 let layout: Layout;
 let showDebug = params.has('debug') || params.has('stress');
 
-function loadHiScore(): number {
+// ───────────────────────────── save data ─────────────────────────────
+
+interface SaveData {
+  hi: Record<string, number>;
+  elegies: Record<string, { attempts: number; captures: number }>;
+  stage1Clears: Record<string, number>;
+}
+
+const SAVE_KEY = 'vespertine.save.v1';
+function loadSave(): SaveData {
   try {
-    return Number(localStorage.getItem('vespertine.m0.hi') ?? 0) || 0;
+    const raw = localStorage.getItem(SAVE_KEY);
+    if (raw) return { hi: {}, elegies: {}, stage1Clears: {}, ...JSON.parse(raw) };
   } catch {
-    return 0;
+    /* storage unavailable or corrupt: start fresh */
+  }
+  return { hi: {}, elegies: {}, stage1Clears: {} };
+}
+const save = loadSave();
+function persist(): void {
+  try {
+    localStorage.setItem(SAVE_KEY, JSON.stringify(save));
+  } catch {
+    /* private mode: progress lives only for this session */
   }
 }
-function saveHiScore(v: number): void {
-  try {
-    localStorage.setItem('vespertine.m0.hi', String(v));
-  } catch {
-    /* storage unavailable (private mode): ignore */
-  }
+function recordHiScore(): void {
+  if (!game) return;
+  const k = String(game.diff);
+  save.hi[k] = Math.max(save.hi[k] ?? 0, game.score);
+  persist();
 }
-hud.hiScore = loadHiScore();
+function elegyStat(g: Game) {
+  const def = g.boss.def?.phases[g.boss.phase];
+  if (!def) return null;
+  const key = `${def.id}|sayo|${g.diff}`;
+  return (save.elegies[key] ??= { attempts: 0, captures: 0 });
+}
 
 // ───────────────────────────── layout ─────────────────────────────
 
@@ -55,67 +83,149 @@ window.addEventListener('resize', relayout);
 window.visualViewport?.addEventListener('resize', relayout);
 relayout();
 
-// ───────────────────────────── state changes ─────────────────────────────
+// ───────────────────────────── screens ─────────────────────────────
 
-document.body.classList.add('title-screen');
-
-function show(id: string, on: boolean): void {
-  $(id).classList.toggle('show', on);
+const SCREENS = ['#title', '#difficulty', '#pause', '#over', '#clear', '#interlude'];
+function showScreen(id: string | null): void {
+  for (const s of SCREENS) $(s).classList.toggle('show', s === id);
+  document.body.classList.toggle('title-screen', id === '#title' || id === '#difficulty' || id === '#interlude');
+  document.body.classList.toggle('menu-open', id !== null);
+  if (id) {
+    // Focus the first sensible button for keyboard/gamepad navigation.
+    const first = $(id).querySelector<HTMLButtonElement>('button:not(:disabled):not(.quiet)');
+    first?.focus({ preventScroll: true });
+  }
 }
+showScreen('#title');
 
-function newGame(): void {
-  game = new Game(PRACTICE_PHASES, 20261126, 0);
-  registerPracticeBursts(game);
-  if (START_PHASE > 0) game.jumpTo(Math.min(START_PHASE, PRACTICE_PHASES.length - 1));
-  input.flush();
-}
-
-function startFromTitle(): void {
+function enterDifficulty(): void {
   audio.unlock();
-  audio.playTrack('stage1');
+  audio.playTrack('title');
+  if (FORCED_DIFF !== null || PRACTICE) {
+    startGame(FORCED_DIFF ?? 1);
+    return;
+  }
+  state = 'difficulty';
+  showScreen('#difficulty');
+  $<HTMLButtonElement>(`[data-diff="${difficulty}"]`).focus({ preventScroll: true });
+}
+
+function startGame(diff: DifficultyId): void {
+  difficulty = diff;
+  audio.unlock();
   if (input.touchMode && document.documentElement.requestFullscreen && !document.fullscreenElement) {
     document.documentElement.requestFullscreen({ navigationUI: 'hide' })
       .then(() => (screen.orientation as ScreenOrientation & { lock?: (o: string) => Promise<void> }).lock?.('portrait'))
       .catch(() => {});
   }
   void (navigator as Navigator & { wakeLock?: { request(t: string): Promise<unknown> } }).wakeLock?.request('screen').catch(() => {});
-  show('#title', false);
-  document.body.classList.remove('title-screen');
   newGame();
+  showScreen(null);
   state = 'play';
+}
+
+function newGame(): void {
+  const script = PRACTICE ? practiceScript(params.has('stress')) : stage1;
+  game = new Game(script, { difficulty, startAt: START_AT, seed: (Date.now() & 0xffffff) | 1 });
+  hud.hiScore = save.hi[String(difficulty)] ?? 0;
+  input.flush();
+  audio.resume();
 }
 
 function pause(): void {
   if (state !== 'play') return;
   state = 'paused';
-  show('#pause', true);
+  showScreen('#pause');
   audio.suspend();
 }
 
 function resume(): void {
   if (state !== 'paused') return;
   state = 'play';
-  show('#pause', false);
+  showScreen(null);
   input.flush();
   audio.resume();
 }
 
-function restart(): void {
-  show('#pause', false);
-  show('#over', false);
+function toTitle(): void {
+  recordHiScore();
+  game = null;
+  state = 'title';
   audio.resume();
-  newGame();
-  state = 'play';
+  audio.playTrack('title');
+  showScreen('#title');
 }
 
-function gameOver(): void {
+function showContinue(): void {
+  if (!game) return;
   state = 'over';
-  saveHiScore(hud.hiScore);
-  $('.over-score').textContent = `Score ${game!.score.toLocaleString('en-US')} · Graze ${game!.graze}`;
-  setTimeout(() => show('#over', true), 900);
+  recordHiScore();
+  const g = game;
+  $('.over-score').textContent = `Score ${g.score.toLocaleString('en-US')} · Graze ${g.graze}`;
+  $('#over .credits').textContent = `(${g.credits} left)`;
+  $<HTMLButtonElement>('[data-act="continue"]').style.display = g.credits > 0 ? '' : 'none';
+  $('.over-note').textContent =
+    g.diff === 0 && g.continuesUsed === 0
+      ? 'On Gentle, one continue still leads to the good ending.'
+      : 'Continuing leads to a different ending.';
+  setTimeout(() => state === 'over' && showScreen('#over'), 900);
 }
 
-$('#title').addEventListener('click', () => state === 'title' && startFromTitle());
+function showClear(): void {
+  if (!game?.results) return;
+  state = 'clear';
+  recordHiScore();
+  save.stage1Clears[String(game.diff)] = (save.stage1Clears[String(game.diff)] ?? 0) + 1;
+  persist();
+  const r = game.results;
+  const rows: Array<[string, string]> = [
+    ['Difficulty', DIFFICULTIES[game.diff]],
+    ['Stage clear bonus', r.clearBonus.toLocaleString('en-US')],
+    ['Elegies captured', `${r.captures} / ${r.elegies}`],
+    ['Graze', String(r.graze)],
+    ['Continues used', String(game.continuesUsed)],
+    ['Score', r.score.toLocaleString('en-US')],
+  ];
+  const dl = $('#clear .results');
+  dl.innerHTML = '';
+  for (const [k, v] of rows) {
+    const dt = document.createElement('dt');
+    dt.textContent = k;
+    const dd = document.createElement('dd');
+    dd.textContent = v;
+    dl.append(dt, dd);
+  }
+  setTimeout(() => state === 'clear' && showScreen('#clear'), 1200);
+}
+
+function showInterlude(): void {
+  state = 'interlude';
+  audio.stopMusic();
+  showScreen('#interlude');
+  $('#interlude .il-title').textContent = STAGE1_INTERLUDE.title;
+  const box = $('#interlude .il-lines');
+  box.innerHTML = '';
+  const end = $('#interlude .il-end');
+  end.classList.remove('show');
+  STAGE1_INTERLUDE.lines.forEach((text, i) => {
+    const p = document.createElement('p');
+    p.textContent = text;
+    box.append(p);
+    setTimeout(() => p.classList.add('show'), 600 + i * 1800);
+  });
+  setTimeout(() => end.classList.add('show'), 600 + STAGE1_INTERLUDE.lines.length * 1800);
+}
+
+// ───────────────────────────── DOM wiring ─────────────────────────────
+
+$('#title').addEventListener('click', () => state === 'title' && enterDifficulty());
+document.querySelectorAll<HTMLButtonElement>('[data-diff]').forEach((b) =>
+  b.addEventListener('click', () => {
+    if (state !== 'difficulty' || b.disabled) return;
+    audio.play('select');
+    startGame(Number(b.dataset.diff) as DifficultyId);
+  }),
+);
 $('#pause-btn').addEventListener('pointerdown', (e) => {
   e.preventDefault();
   if (state === 'play') pause();
@@ -140,7 +250,9 @@ document.querySelectorAll<HTMLButtonElement>('[data-act]').forEach((b) =>
         resume();
         break;
       case 'restart':
-        restart();
+        newGame();
+        showScreen(null);
+        state = 'play';
         break;
       case 'mute':
         toggleMute();
@@ -148,6 +260,26 @@ document.querySelectorAll<HTMLButtonElement>('[data-act]').forEach((b) =>
       case 'flash':
         renderer.reduceFlash = !renderer.reduceFlash;
         flashBtn.textContent = `Reduce flashing: ${renderer.reduceFlash ? 'On' : 'Off'}`;
+        break;
+      case 'title':
+        toTitle();
+        break;
+      case 'back':
+        state = 'title';
+        showScreen('#title');
+        break;
+      case 'continue':
+        if (game?.continueGame()) {
+          showScreen(null);
+          state = 'play';
+          input.flush();
+        }
+        break;
+      case 'giveup':
+        toTitle();
+        break;
+      case 'vigil':
+        showInterlude();
         break;
     }
   }),
@@ -171,14 +303,145 @@ btnBomb.addEventListener('pointerdown', (e) => {
   input.pressBomb();
 });
 
+/** Keyboard menu navigation: arrows move between buttons, Z / Enter activates. */
+function menuKey(e: KeyboardEvent): boolean {
+  const screenEl = SCREENS.map((s) => $(s)).find((el) => el.classList.contains('show'));
+  if (!screenEl) return false;
+  const buttons = Array.from(screenEl.querySelectorAll<HTMLButtonElement>('button')).filter((b) => !b.disabled && b.offsetParent !== null);
+  if (!buttons.length) return false;
+  const idx = buttons.indexOf(document.activeElement as HTMLButtonElement);
+  if (e.code === 'ArrowDown' || e.code === 'ArrowUp') {
+    const d = e.code === 'ArrowDown' ? 1 : -1;
+    buttons[(idx + d + buttons.length) % buttons.length].focus({ preventScroll: true });
+    audio.play('select');
+    return true;
+  }
+  if (e.code === 'KeyZ' || e.code === 'Enter' || e.code === 'Space') {
+    (idx >= 0 ? buttons[idx] : buttons[0]).click();
+    return true;
+  }
+  if (e.code === 'KeyX' || e.code === 'Escape') {
+    if (state === 'paused') resume();
+    else if (state === 'difficulty') {
+      state = 'title';
+      showScreen('#title');
+    }
+    return true;
+  }
+  return false;
+}
+
 window.addEventListener('keydown', (e) => {
+  if (e.repeat) return;
   if (e.code === 'Backquote' || e.code === 'F3') {
     showDebug = !showDebug;
     e.preventDefault();
+    return;
   }
-  if (e.code === 'KeyM') toggleMute();
+  if (e.code === 'KeyM') {
+    toggleMute();
+    return;
+  }
+  if (state === 'title') {
+    if (e.code === 'KeyZ' || e.code === 'Enter' || e.code === 'Space') {
+      e.preventDefault();
+      enterDifficulty();
+    }
+    return;
+  }
+  if (state === 'difficulty' || state === 'paused' || state === 'over' || state === 'clear' || state === 'interlude') {
+    // Escape in play is handled by Input; here it closes menus.
+    if (menuKey(e)) {
+      e.preventDefault();
+      input.takePause(); // swallow the Escape the Input layer also saw
+    }
+    return;
+  }
   if (state === 'play' && game && /^Digit[1-5]$/.test(e.code)) game.jumpTo(Number(e.code.slice(5)) - 1);
 });
+
+// ───────────────────────────── events ─────────────────────────────
+
+const DIRECT_SFX: Partial<Record<string, Sfx>> = {
+  shot: 'shot', graze: 'graze', phaseEnd: 'phaseEnd', vigil: 'vigil', bossHit: 'bossHit',
+  enemyHit: 'enemyHit', enemyDie: 'enemyDie', item: 'item', bossDefeat: 'bossDefeat',
+};
+
+function vibrate(p: number | number[]): void {
+  if (input.touchMode && navigator.vibrate) navigator.vibrate(p);
+}
+
+function handleEvents(g: Game): void {
+  for (const ev of g.events) {
+    const sfx = DIRECT_SFX[ev];
+    if (sfx) {
+      audio.play(sfx);
+      continue;
+    }
+    switch (ev) {
+      case 'music':
+        audio.playTrack(g.music);
+        break;
+      case 'stageCard':
+        hud.showStageCard(g);
+        break;
+      case 'bossIntro':
+        hud.showBossCard(g);
+        break;
+      case 'declare': {
+        audio.play('declare');
+        if (g.boss.elegy) hud.showBanner(g.boss.elegy);
+        hud.playCutin(g);
+        const st = elegyStat(g);
+        if (st) st.attempts++;
+        vibrate(20);
+        break;
+      }
+      case 'capture':
+      case 'captureFail': {
+        audio.play(ev);
+        hud.showCapture(g);
+        if (ev === 'capture') {
+          const def = g.boss.def?.phases[g.boss.phase];
+          if (def) {
+            const st = save.elegies[`${def.id}|sayo|${g.diff}`];
+            if (st) st.captures++;
+          }
+          persist();
+        }
+        break;
+      }
+      case 'death':
+        audio.play('death');
+        vibrate([60, 40, 60]);
+        break;
+      case 'bomb':
+        audio.play('bomb');
+        vibrate(40);
+        break;
+      case 'extend':
+        audio.play('extend');
+        hud.showBanner('A new candle is lit.');
+        break;
+      case 'bombGet':
+        audio.play('bombGet');
+        hud.showBanner('A new Litany is remembered.');
+        break;
+      case 'fullPower':
+        hud.showBanner('The Ember burns at full strength.');
+        break;
+      case 'dialogueLine':
+        audio.play('talk');
+        break;
+      case 'gameover':
+        showContinue();
+        break;
+      case 'stageClear':
+        showClear();
+        break;
+    }
+  }
+}
 
 // ───────────────────────────── loop ─────────────────────────────
 
@@ -191,39 +454,6 @@ let simMs = 0;
 let qualityTimer = 0;
 let slowFrames = 0;
 let qualityFrames = 0;
-
-function handleEvents(g: Game): void {
-  for (const ev of g.events) {
-    switch (ev) {
-      case 'declare':
-        audio.play('declare');
-        if (g.boss.elegy) hud.showBanner(g.boss.elegy);
-        if (navigator.vibrate && input.touchMode) navigator.vibrate(20);
-        break;
-      case 'death':
-        audio.play('death');
-        if (navigator.vibrate && input.touchMode) navigator.vibrate([60, 40, 60]);
-        break;
-      case 'bomb':
-        audio.play('bomb');
-        if (navigator.vibrate && input.touchMode) navigator.vibrate(40);
-        break;
-      case 'gameover':
-        gameOver();
-        break;
-      case 'shot':
-      case 'graze':
-      case 'phaseEnd':
-      case 'vigil':
-      case 'bossHit':
-        audio.play(ev);
-        break;
-      case 'cycle':
-        hud.showBanner('The effigy stands again.');
-        break;
-    }
-  }
-}
 
 function step(): void {
   if (!game) return;
@@ -238,7 +468,7 @@ function step(): void {
     game.tick(inp);
     simMs = simMs * 0.95 + (performance.now() - t0) * 0.05;
     handleEvents(game);
-  } else if (state === 'over') {
+  } else if (state === 'over' || state === 'clear') {
     game.tick(EMPTY_INPUT);
   }
 }
@@ -249,8 +479,7 @@ function adaptQuality(dt: number): void {
   qualityFrames++;
   if (dt > 1 / 45) slowFrames++;
   if (qualityTimer < 2) return;
-  const slowShare = slowFrames / qualityFrames;
-  if (slowShare > 0.25 && renderer.resolutionScale > 0.75) {
+  if (slowFrames / qualityFrames > 0.25 && renderer.resolutionScale > 0.75) {
     renderer.setPixelRatio(Math.max(0.75, renderer.resolutionScale - 0.25));
     relayout();
   }
@@ -265,13 +494,7 @@ function frame(now: number): void {
   if (dt > 0.25) dt = 0.25;
   if (Math.abs(dt - TICK) < 0.002) dt = TICK;
 
-  if (state === 'title') {
-    if (input.takeConfirm()) startFromTitle();
-  } else if (state === 'paused') {
-    if (input.takePause()) resume();
-  } else if (state === 'over') {
-    if (input.takeConfirm() && $('#over').classList.contains('show')) restart();
-  }
+  if (state === 'paused' && input.takePause()) resume();
 
   acc += dt;
   let steps = 0;
@@ -283,11 +506,11 @@ function frame(now: number): void {
   // Fall behind gracefully: slow down instead of skipping ahead (genre convention).
   if (acc > TICK) acc = 0;
 
-  if (state !== 'paused') renderer.updateVisuals(dt, game);
-  renderer.render(state === 'title' ? null : game, layout.field, layout.vh);
-  if (game && state !== 'title') hud.update(game);
-
-  if (game) {
+  const inGame = game !== null && state !== 'title' && state !== 'difficulty' && state !== 'interlude';
+  if (state !== 'paused') renderer.updateVisuals(dt, inGame ? game : null);
+  renderer.render(inGame ? game : null, layout.field, layout.vh);
+  if (inGame && game) {
+    hud.update(game);
     const p = game.player;
     btnSkill.classList.toggle('ready', p.vigilMeter >= 1 && !game.vigil.active);
     btnBomb.disabled = p.bombs <= 0;
@@ -299,10 +522,10 @@ function frame(now: number): void {
     fps = fpsFrames / fpsTime;
     fpsFrames = 0;
     fpsTime = 0;
-    if (showDebug && game) {
+    if (showDebug && game && inGame) {
       hud.setDebug(
         `fps ${fps.toFixed(0)}  sim ${simMs.toFixed(2)}ms\n` +
-          `bullets ${game.bullets.n}  shots ${game.shots.n}  fx ${game.fx.n}\n` +
+          `bullets ${game.bullets.n}  enemies ${game.enemies.length}  items ${game.items.n}\n` +
           `draws ${renderer.drawCalls}  res ${renderer.resolutionScale.toFixed(2)}x`,
       );
     } else hud.setDebug(null);

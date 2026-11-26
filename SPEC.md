@@ -405,7 +405,7 @@ Mobile touch details:
 |---|---|---|
 | Lives | **Candles** | Start with 3 (Gentle: 5). Extra candles from score thresholds and Candle Fragments (5 fragments = 1 candle). |
 | Bombs | **Litanies** | Restored to the character's default on death. Fragments come from Elegy captures. |
-| Power | **Ember** | 1.00 to 4.00. Shot strength increases in steps at 2, 3 and 4. Lose 0.50 on death; power items scatter. |
+| Power | **Ember** | 1.00 to 4.00. One option (emitter) per whole power level, so shots widen at 2, 3 and 4. Lose 0.50 on death; power items scatter. Stage 1 offers about 2.9 power in total. |
 | Graze | **Graze** | Bullets passing within the graze radius. Adds to score and raises point item value. Feeds Wren's Toll meter. |
 | Skill meter | (per character) | Ember / pins / Gear / Toll, as described in §3. |
 
@@ -413,8 +413,8 @@ Mobile touch details:
 
 | Item | Look | Effect |
 |---|---|---|
-| Power | Small red-amber flame | +0.01 power (large version +0.10) |
-| Point | Small blue paper slip | Score; worth more when collected higher up the screen |
+| Power | Small red **P** tile | +0.05 power (large version +0.25). At full power, worth points instead |
+| Point | Small blue ◆ tile | Score; full value above the collection line (top 28%), less lower down |
 | Recollection | White shard with a faint glow | Codex entry and multiplier |
 | Candle Fragment | Pink-violet flame | 5 = extra life |
 | Litany Fragment | Green prayer strip | 3 = extra bomb |

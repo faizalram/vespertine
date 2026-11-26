@@ -365,6 +365,282 @@ const drawShard: Draw = (c, w, h) => {
   ellipse(c, w / 2, h / 2, w * 0.2, h * 0.2, CORE);
 };
 
+
+/** Chaff wisp: a bundle of straw around a small sad ember. */
+const drawChaff: Draw = (c, w, h) => {
+  const cx = w / 2;
+  const cy = h / 2;
+  c.fillStyle = radial(c, cx, cy, 0, w / 2, [[0, 'rgba(255,210,120,0.55)'], [1, 'rgba(255,170,80,0)']]);
+  c.fillRect(0, 0, w, h);
+  c.strokeStyle = '#d9b46a';
+  c.lineWidth = 2;
+  c.lineCap = 'round';
+  for (let i = 0; i < 9; i++) {
+    const a = (i / 9) * Math.PI * 2 + 0.3;
+    c.beginPath();
+    c.moveTo(cx + Math.cos(a) * 6, cy + Math.sin(a) * 6);
+    c.lineTo(cx + Math.cos(a + 0.25) * (w * 0.42), cy + Math.sin(a + 0.25) * (h * 0.42));
+    c.stroke();
+  }
+  ellipse(c, cx, cy, 8, 8, '#3a2418');
+  ellipse(c, cx, cy, 5, 5, '#ffcf70');
+  c.fillStyle = '#3a2418';
+  c.fillRect(cx - 3, cy - 1, 1.5, 1.5);
+  c.fillRect(cx + 1.5, cy - 1, 1.5, 1.5);
+};
+
+/** Crow, drawn facing down (direction of travel). */
+const drawCrow: Draw = (c, w, h) => {
+  const cx = w / 2;
+  c.fillStyle = '#120c16';
+  c.beginPath();
+  c.moveTo(cx, h * 0.92); // beak
+  c.lineTo(cx + 5, h * 0.7);
+  c.quadraticCurveTo(cx + w * 0.3, h * 0.55, w * 0.98, h * 0.3); // right wing tip
+  c.lineTo(cx + w * 0.2, h * 0.4);
+  c.lineTo(cx + 7, h * 0.1); // tail
+  c.lineTo(cx - 7, h * 0.1);
+  c.lineTo(cx - w * 0.2, h * 0.4);
+  c.lineTo(w * 0.02, h * 0.3);
+  c.quadraticCurveTo(cx - w * 0.3, h * 0.55, cx - 5, h * 0.7);
+  c.closePath();
+  c.fill();
+  c.strokeStyle = 'rgba(190,150,230,0.7)';
+  c.lineWidth = 1.2;
+  c.stroke();
+  ellipse(c, cx - 3, h * 0.72, 1.8, 1.8, '#ff4a5a');
+  ellipse(c, cx + 3, h * 0.72, 1.8, 1.8, '#ff4a5a');
+};
+
+/** Paper field lantern with a painted, gently sad face. */
+const drawFieldLantern: Draw = (c, w, h) => {
+  const cx = w / 2;
+  const cy = h / 2;
+  c.fillStyle = radial(c, cx, cy, 4, w / 2, [[0, 'rgba(255,200,110,0.7)'], [1, 'rgba(255,140,60,0)']]);
+  c.fillRect(0, 0, w, h);
+  c.fillStyle = '#ffdca0';
+  c.beginPath();
+  c.ellipse(cx, cy, w * 0.3, h * 0.36, 0, 0, Math.PI * 2);
+  c.fill();
+  c.strokeStyle = 'rgba(160,80,40,0.55)';
+  c.lineWidth = 1.2;
+  for (let i = -2; i <= 2; i++) {
+    c.beginPath();
+    c.ellipse(cx, cy, Math.abs(i) * w * 0.07 + 0.5, h * 0.36, 0, 0, Math.PI * 2);
+    c.stroke();
+  }
+  c.fillStyle = '#5a2a18';
+  c.fillRect(cx - w * 0.16, cy - h * 0.4, w * 0.32, 4);
+  c.fillRect(cx - w * 0.16, cy + h * 0.36, w * 0.32, 4);
+  c.fillStyle = '#7a3020';
+  c.beginPath();
+  c.arc(cx - 6, cy - 1, 2, 0, Math.PI * 2);
+  c.arc(cx + 6, cy - 1, 2, 0, Math.PI * 2);
+  c.fill();
+  c.strokeStyle = '#7a3020';
+  c.beginPath();
+  c.moveTo(cx - 4, cy + 7);
+  c.quadraticCurveTo(cx, cy + 4, cx + 4, cy + 7);
+  c.stroke();
+};
+
+/** Crow Matron: a tall woman in a cloak of black feathers and a pale crow mask. */
+const drawMatron: Draw = (c, w, h) => {
+  const cx = w / 2;
+  c.fillStyle = radial(c, cx, h * 0.45, 10, w * 0.5, [[0, 'rgba(150,90,200,0.35)'], [1, 'rgba(90,40,140,0)']]);
+  c.fillRect(0, 0, w, h);
+  // Feather wings / cloak.
+  c.fillStyle = '#140c1c';
+  for (const s of [-1, 1]) {
+    c.beginPath();
+    c.moveTo(cx, h * 0.3);
+    for (let i = 0; i <= 6; i++) {
+      const t = i / 6;
+      c.lineTo(cx + s * (w * 0.12 + t * w * 0.36), h * (0.28 + t * 0.12) + (i % 2 ? 10 : 0));
+    }
+    c.lineTo(cx + s * w * 0.3, h * 0.78);
+    c.lineTo(cx + s * w * 0.1, h * 0.92);
+    c.closePath();
+    c.fill();
+  }
+  c.strokeStyle = 'rgba(180,140,230,0.5)';
+  c.lineWidth = 1.5;
+  for (const s of [-1, 1]) {
+    for (let i = 1; i < 6; i++) {
+      c.beginPath();
+      c.moveTo(cx + s * w * 0.1, h * 0.38);
+      c.lineTo(cx + s * (w * 0.12 + (i / 6) * w * 0.36), h * (0.3 + (i / 6) * 0.12) + 6);
+      c.stroke();
+    }
+  }
+  // Body.
+  c.fillStyle = '#2a1638';
+  c.beginPath();
+  c.moveTo(cx - 14, h * 0.32);
+  c.lineTo(cx + 14, h * 0.32);
+  c.lineTo(cx + 24, h * 0.94);
+  c.lineTo(cx - 24, h * 0.94);
+  c.closePath();
+  c.fill();
+  // Hair and mask.
+  c.fillStyle = '#0c0810';
+  c.beginPath();
+  c.ellipse(cx, h * 0.22, 17, 18, 0, 0, Math.PI * 2);
+  c.fill();
+  c.fillStyle = '#e8e2ee';
+  c.beginPath();
+  c.moveTo(cx - 12, h * 0.18);
+  c.lineTo(cx + 12, h * 0.18);
+  c.lineTo(cx + 9, h * 0.25);
+  c.lineTo(cx, h * 0.36);
+  c.lineTo(cx - 9, h * 0.25);
+  c.closePath();
+  c.fill();
+  c.fillStyle = '#c03040';
+  ellipse(c, cx - 5, h * 0.21, 2.2, 2.2, '#c03040');
+  ellipse(c, cx + 5, h * 0.21, 2.2, 2.2, '#c03040');
+};
+
+/** Hoshiko Aze: straw-blond braids, wide hat, patchwork dress, a little scythe. */
+const drawHoshiko: Draw = (c, w, h) => {
+  const cx = w / 2;
+  c.fillStyle = radial(c, cx, h * 0.5, 10, w * 0.5, [[0, 'rgba(255,200,120,0.3)'], [1, 'rgba(255,160,80,0)']]);
+  c.fillRect(0, 0, w, h);
+  // Scythe behind.
+  c.strokeStyle = '#4a2e22';
+  c.lineWidth = 3;
+  c.beginPath();
+  c.moveTo(cx + 30, h * 0.92);
+  c.lineTo(cx + 40, h * 0.28);
+  c.stroke();
+  c.fillStyle = '#cfd2dc';
+  c.beginPath();
+  c.moveTo(cx + 40, h * 0.28);
+  c.quadraticCurveTo(cx + 18, h * 0.18, cx + 8, h * 0.3);
+  c.quadraticCurveTo(cx + 22, h * 0.25, cx + 40, h * 0.33);
+  c.closePath();
+  c.fill();
+  // Dress with patches.
+  c.fillStyle = '#8a4a3a';
+  c.beginPath();
+  c.moveTo(cx - 12, h * 0.42);
+  c.lineTo(cx + 12, h * 0.42);
+  c.lineTo(cx + 26, h * 0.9);
+  c.lineTo(cx - 26, h * 0.9);
+  c.closePath();
+  c.fill();
+  c.fillStyle = '#c9a25a';
+  c.fillRect(cx - 18, h * 0.66, 12, 10);
+  c.fillStyle = '#5a6a8a';
+  c.fillRect(cx + 4, h * 0.74, 12, 9);
+  c.fillStyle = '#e9dfc8';
+  c.fillRect(cx - 26, h * 0.86, 52, h * 0.04);
+  // Straw tufts at sleeves.
+  c.strokeStyle = '#e0bf70';
+  c.lineWidth = 2;
+  for (const s of [-1, 1]) {
+    for (let i = 0; i < 4; i++) {
+      c.beginPath();
+      c.moveTo(cx + s * 14, h * 0.48);
+      c.lineTo(cx + s * (22 + i * 3), h * (0.56 + i * 0.02));
+      c.stroke();
+    }
+  }
+  // Braids.
+  c.fillStyle = '#e8c26a';
+  for (const s of [-1, 1]) {
+    c.beginPath();
+    c.ellipse(cx + s * 13, h * 0.42, 4, 13, s * 0.2, 0, Math.PI * 2);
+    c.fill();
+  }
+  // Face.
+  c.fillStyle = '#f6e2cc';
+  c.beginPath();
+  c.ellipse(cx, h * 0.31, 11, 12, 0, 0, Math.PI * 2);
+  c.fill();
+  c.fillStyle = '#e8c26a';
+  c.beginPath();
+  c.moveTo(cx - 12, h * 0.28);
+  c.quadraticCurveTo(cx, h * 0.2, cx + 12, h * 0.28);
+  c.lineTo(cx + 12, h * 0.25);
+  c.quadraticCurveTo(cx, h * 0.17, cx - 12, h * 0.25);
+  c.fill();
+  // Button eyes and stitched smile.
+  ellipse(c, cx - 4.5, h * 0.315, 2.2, 2.2, '#2a1a2a');
+  ellipse(c, cx + 4.5, h * 0.315, 2.2, 2.2, '#2a1a2a');
+  c.strokeStyle = '#a04040';
+  c.lineWidth = 1.2;
+  c.beginPath();
+  c.moveTo(cx - 4, h * 0.355);
+  c.quadraticCurveTo(cx, h * 0.38, cx + 4, h * 0.355);
+  c.stroke();
+  // Wide straw hat.
+  c.fillStyle = '#e0bf70';
+  c.beginPath();
+  c.moveTo(cx - 34, h * 0.24);
+  c.quadraticCurveTo(cx, h * 0.04, cx + 34, h * 0.24);
+  c.quadraticCurveTo(cx, h * 0.28, cx - 34, h * 0.24);
+  c.closePath();
+  c.fill();
+  c.fillStyle = '#b04848';
+  c.fillRect(cx - 14, h * 0.18, 28, 3);
+};
+
+function itemBox(c: CanvasRenderingContext2D, w: number, h: number, fill: string, glyph: string, glyphColor = '#fff') {
+  c.fillStyle = 'rgba(0,0,0,0.6)';
+  c.fillRect(1, 1, w - 2, h - 2);
+  c.fillStyle = fill;
+  c.fillRect(3, 3, w - 6, h - 6);
+  c.fillStyle = glyphColor;
+  c.font = `bold ${Math.round(h * 0.62)}px Georgia, serif`;
+  c.textAlign = 'center';
+  c.textBaseline = 'middle';
+  c.fillText(glyph, w / 2, h / 2 + 1);
+}
+
+const drawItemPower: Draw = (c, w, h) => itemBox(c, w, h, '#e0503a', 'P');
+const drawItemPowerBig: Draw = (c, w, h) => itemBox(c, w, h, '#ff7040', 'P', '#fff2c0');
+const drawItemPoint: Draw = (c, w, h) => itemBox(c, w, h, '#3a70e0', '◆', '#dfe8ff');
+const drawItemLife: Draw = (c, w, h) => {
+  const cx = w / 2;
+  c.fillStyle = radial(c, cx, h * 0.6, 0, w / 2, [[0, '#fff0f6'], [0.4, '#ff8fb0'], [1, 'rgba(255,90,140,0)']]);
+  c.beginPath();
+  c.moveTo(cx, 1);
+  c.quadraticCurveTo(w - 2, h * 0.55, cx, h - 2);
+  c.quadraticCurveTo(2, h * 0.55, cx, 1);
+  c.fill();
+};
+const drawItemBomb: Draw = (c, w, h) => {
+  c.fillStyle = 'rgba(0,0,0,0.6)';
+  c.fillRect(w * 0.2, 0, w * 0.6, h);
+  c.fillStyle = '#5ad08a';
+  c.fillRect(w * 0.26, 2, w * 0.48, h - 4);
+  c.fillStyle = '#eaffef';
+  c.fillRect(w / 2 - 1, 5, 2, h - 10);
+  c.fillRect(w / 2 - 4, 8, 8, 2);
+};
+const drawItemStar: Draw = (c, w) => {
+  const r = w / 2;
+  c.fillStyle = radial(c, r, r, 0, r, [[0, '#ffffff'], [0.4, 'rgba(200,230,255,0.9)'], [1, 'rgba(150,200,255,0)']]);
+  c.beginPath();
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 8) * Math.PI * 2;
+    const rr = i % 2 ? r * 0.35 : r;
+    c.lineTo(r + Math.cos(a) * rr, r + Math.sin(a) * rr);
+  }
+  c.closePath();
+  c.fill();
+};
+const drawMarker: Draw = (c, w, h) => {
+  c.fillStyle = 'rgba(255,120,150,0.95)';
+  c.beginPath();
+  c.moveTo(w / 2, 0);
+  c.lineTo(w, h);
+  c.lineTo(0, h);
+  c.closePath();
+  c.fill();
+};
+
 const DEFS: Def[] = [
   { id: S.orb, w: 32, h: 32, mode: MODE_TINT, draw: drawOrb },
   { id: S.rice, w: 18, h: 34, mode: MODE_TINT, draw: drawRice },
@@ -383,6 +659,19 @@ const DEFS: Def[] = [
   { id: S.effigy, w: 160, h: 160, mode: MODE_RAW, draw: drawEffigy },
   { id: S.white, w: 8, h: 8, mode: MODE_RAW, draw: drawWhite },
   { id: S.shard, w: 16, h: 20, mode: MODE_TINT, draw: drawShard },
+  { id: S.feather, w: 16, h: 20, mode: MODE_TINT, draw: drawPetal },
+  { id: S.chaff, w: 48, h: 48, mode: MODE_RAW, draw: drawChaff },
+  { id: S.crow, w: 52, h: 44, mode: MODE_RAW, draw: drawCrow },
+  { id: S.fieldLantern, w: 64, h: 72, mode: MODE_RAW, draw: drawFieldLantern },
+  { id: S.matron, w: 192, h: 176, mode: MODE_RAW, draw: drawMatron },
+  { id: S.hoshiko, w: 128, h: 144, mode: MODE_RAW, draw: drawHoshiko },
+  { id: S.itemPower, w: 22, h: 22, mode: MODE_RAW, draw: drawItemPower },
+  { id: S.itemPowerBig, w: 32, h: 32, mode: MODE_RAW, draw: drawItemPowerBig },
+  { id: S.itemPoint, w: 22, h: 22, mode: MODE_RAW, draw: drawItemPoint },
+  { id: S.itemLife, w: 30, h: 34, mode: MODE_RAW, draw: drawItemLife },
+  { id: S.itemBomb, w: 24, h: 34, mode: MODE_RAW, draw: drawItemBomb },
+  { id: S.itemStar, w: 18, h: 18, mode: MODE_RAW, draw: drawItemStar },
+  { id: S.marker, w: 16, h: 12, mode: MODE_RAW, draw: drawMarker },
 ];
 
 export interface Atlas {
@@ -392,7 +681,7 @@ export interface Atlas {
 
 /** Shelf-pack every sprite into one canvas, drawing each with 1px padding. */
 export function buildAtlas(): Atlas {
-  const size = 512;
+  const size = 1024;
   const canvas = document.createElement('canvas');
   canvas.width = size;
   canvas.height = size;

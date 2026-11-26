@@ -16,8 +16,11 @@ export class Scheduler {
     return task;
   }
 
+  /** Stops every task, running their `finally` blocks (used for cleanup such as removing familiars). */
   clear(): void {
-    this.tasks.length = 0;
+    const tasks = this.tasks;
+    this.tasks = [];
+    for (const t of tasks) t.return();
   }
 
   get size(): number {

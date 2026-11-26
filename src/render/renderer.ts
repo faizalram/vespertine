@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { BULLET_TYPES } from '../game/bulletTypes';
 import { FIELD_H, FIELD_W, SPAWN_GRACE } from '../game/constants';
+import { IT } from '../game/defs';
 import { SAYO, type Game } from '../game/game';
 import { C, PALETTE } from '../game/palette';
 import { S } from '../game/sprites';
@@ -15,6 +16,15 @@ export interface Rect {
   h: number;
 }
 
+const ITEM_SPRITE: Record<number, number> = {
+  [IT.power]: S.itemPower,
+  [IT.powerBig]: S.itemPowerBig,
+  [IT.point]: S.itemPoint,
+  [IT.life]: S.itemLife,
+  [IT.bomb]: S.itemBomb,
+  [IT.star]: S.itemStar,
+};
+
 /**
  * Two layers composed into the playfield viewport:
  *  1. a 3D perspective background scene;
@@ -26,12 +36,16 @@ export class Renderer {
   readonly bg = new Stage1Background();
   private readonly scene = new THREE.Scene();
   private readonly cam: THREE.OrthographicCamera;
+  private readonly back: SpriteBatch;
   private readonly shots: SpriteBatch;
   private readonly actors: SpriteBatch;
+  private readonly items: SpriteBatch;
   private readonly bullets: SpriteBatch;
   private readonly fx: SpriteBatch;
   private readonly top: SpriteBatch;
+  private readonly all: SpriteBatch[];
   private pixelRatio: number;
+  private elegyFade = 0;
   reduceFlash = false;
   drawCalls = 0;
 
@@ -56,12 +70,16 @@ export class Renderer {
     tex.generateMipmaps = false;
     tex.colorSpace = THREE.NoColorSpace;
 
-    this.shots = new SpriteBatch(1024, tex, atlas.regions, true, 0);
-    this.actors = new SpriteBatch(64, tex, atlas.regions, false, 1);
-    this.bullets = new SpriteBatch(4096, tex, atlas.regions, false, 2);
-    this.fx = new SpriteBatch(3200, tex, atlas.regions, true, 3);
-    this.top = new SpriteBatch(16, tex, atlas.regions, false, 4);
-    for (const b of [this.shots, this.actors, this.bullets, this.fx, this.top]) this.scene.add(b.mesh);
+    const r = atlas.regions;
+    this.back = new SpriteBatch(8, tex, r, false, -1);
+    this.shots = new SpriteBatch(1024, tex, r, true, 0);
+    this.actors = new SpriteBatch(160, tex, r, false, 1);
+    this.items = new SpriteBatch(1024, tex, r, false, 2);
+    this.bullets = new SpriteBatch(4096, tex, r, false, 3);
+    this.fx = new SpriteBatch(3200, tex, r, true, 4);
+    this.top = new SpriteBatch(16, tex, r, false, 5);
+    this.all = [this.back, this.shots, this.actors, this.items, this.bullets, this.fx, this.top];
+    for (const b of this.all) this.scene.add(b.mesh);
   }
 
   get resolutionScale(): number {
@@ -80,6 +98,11 @@ export class Renderer {
   /** Advance purely visual state (background scroll). */
   updateVisuals(dt: number, g: Game | null): void {
     this.bg.shake = g ? g.shake : 0;
+    // The world slows to a drift while a boss holds the sky.
+    const targetSpeed = g && g.boss.present ? 2 : 7;
+    this.bg.speed += (targetSpeed - this.bg.speed) * Math.min(1, dt * 1.5);
+    const elegy = g && g.boss.present && g.boss.elegy ? 1 : 0;
+    this.elegyFade += (elegy - this.elegyFade) * Math.min(1, dt * 3);
     this.bg.update(dt);
   }
 
@@ -108,12 +131,23 @@ export class Renderer {
   }
 
   private fill(g: Game): void {
-    const { shots, actors, bullets, fx, top } = this;
-    for (const b of [shots, actors, bullets, fx, top]) b.begin();
+    const { back, shots, actors, items, bullets, fx, top } = this;
+    for (const b of this.all) b.begin();
     const p = g.player;
     const f = g.frame;
+    const boss = g.boss;
 
-    // Vigil ward (under everything else that glows).
+    // Elegy backdrop: the dusk dims and a slow sigil turns behind the boss.
+    if (this.elegyFade > 0.01) {
+      back.push(S.white, FIELD_W / 2, FIELD_H / 2, 0, 1, 0.1, 0.04, 0.14, 0.5 * this.elegyFade, FIELD_W, FIELD_H);
+      const [r, gg, b] = PALETTE[C.rose];
+      shots.push(S.ward, boss.x, boss.y, f * 0.004, 4.2, r, gg, b, 0.22 * this.elegyFade);
+      shots.push(S.ward, boss.x, boss.y, -f * 0.006, 2.6, r, gg, b, 0.18 * this.elegyFade);
+    }
+    // Dialogue: dim the field a little so the text reads.
+    if (g.dialogue) back.push(S.white, FIELD_W / 2, FIELD_H / 2, 0, 1, 0.05, 0.03, 0.08, 0.3, FIELD_W, FIELD_H);
+
+    // Vigil ward.
     const v = g.vigil;
     if (v.active) {
       const k = v.t / SAYO.vigilFrames;
@@ -127,16 +161,26 @@ export class Renderer {
     const s = g.shots;
     const amb = PALETTE[C.amber];
     for (let i = 0; i < s.n; i++) {
-      const rot = Math.atan2(s.vy[i], s.vx[i]) + Math.PI / 2;
       if (s.sprite[i] === S.wisp) shots.push(S.wisp, s.x[i], s.y[i], 0, 1, amb[0], amb[1], amb[2], 0.75);
-      else shots.push(S.lance, s.x[i], s.y[i], rot, 1, 1, 0.8, 0.5, 0.55);
+      else shots.push(S.lance, s.x[i], s.y[i], Math.atan2(s.vy[i], s.vx[i]) + Math.PI / 2, 1, 1, 0.8, 0.5, 0.55);
+    }
+
+    // Enemies.
+    for (const e of g.enemies) {
+      if (!e.alive) continue;
+      const rot = e.orient || e.intangible ? Math.atan2(e.vy, e.vx) - Math.PI / 2 : Math.sin((f + e.x) * 0.05) * 0.12;
+      const lit = e.flash > 0 ? 1.6 : 1;
+      const sc = e.intangible ? 0.8 : 1;
+      actors.push(e.sprite, e.x, e.y, rot, sc, lit, lit, lit, 1);
     }
 
     // Boss.
-    const boss = g.boss;
-    if (boss.present) {
+    if (boss.present && boss.def) {
       const bob = Math.sin(f * 0.05) * 3;
-      actors.push(S.effigy, boss.x, boss.y + bob, Math.sin(f * 0.03) * 0.05, 1);
+      const lit = boss.flash > 0 ? 1.35 : 1;
+      const a = boss.defeated ? 0.75 : 1;
+      actors.push(boss.def.sprite, boss.x, boss.y + bob, Math.sin(f * 0.03) * 0.04, 1, lit, lit, lit, a);
+      if (boss.y > 0) top.push(S.marker, boss.x, FIELD_H - 5, 0, 1, 1, 1, 1, 0.9);
     }
 
     // Player and emitters.
@@ -144,7 +188,15 @@ export class Renderer {
       const blink = p.invuln > 0 && Math.floor(f / 3) % 2 === 0;
       const alpha = blink ? 0.35 : 1;
       actors.push(S.sayo, p.x, p.y, 0, 1, 1, 1, 1, alpha);
-      for (const [ex, ey] of p.emitters) actors.push(S.emitter, ex, ey, 0, 1, 1, 1, 1, alpha);
+      for (let i = 0; i < p.emitterCount; i++) actors.push(S.emitter, p.emitters[i][0], p.emitters[i][1], 0, 1, 1, 1, 1, alpha);
+    }
+
+    // Items (under bullets so bullets always stay readable).
+    const it = g.items;
+    for (let i = 0; i < it.n; i++) {
+      const t = it.type[i];
+      const rot = t === IT.star ? (f + i) * 0.15 : 0;
+      items.push(ITEM_SPRITE[t], it.x[i], it.y[i], rot, 1, 1, 1, 1, 1);
     }
 
     // Enemy bullets.
@@ -183,10 +235,8 @@ export class Renderer {
     if (flash > 0) fx.push(S.white, FIELD_W / 2, FIELD_H / 2, 0, 1, 1, 0.85, 0.7, flash * 0.5, FIELD_W, FIELD_H);
 
     // Hitbox while focused.
-    if (!g.over && (p.focus || p.deathTimer >= 0)) {
-      top.push(S.hitbox, p.x, p.y, f * 0.05, 0.85);
-    }
+    if (!g.over && (p.focus || p.deathTimer >= 0)) top.push(S.hitbox, p.x, p.y, f * 0.05, 0.85);
 
-    for (const b of [shots, actors, bullets, fx, top]) b.end();
+    for (const b of this.all) b.end();
   }
 }
