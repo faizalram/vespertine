@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+    <meta name="theme-color" content="#0c0912" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="description" content="Vespertine: Elegy of the Unremembered. A melancholic 2.5D bullet-hell shooter." />
+    <title>Vespertine</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet" />
+  </head>
+  <body>
+    <canvas id="gl"></canvas>
+    <div id="safe-probe"></div>
+
+    <div id="ui">
+      <!-- Desktop side panel -->
+      <section id="panel" class="hud">
+        <h1 class="logo">Vespertine</h1>
+        <p class="logo-sub">Elegy of the Unremembered</p>
+        <dl class="stats">
+          <dt>Hi-Score</dt><dd data-k="hi">0</dd>
+          <dt>Score</dt><dd data-k="score">0</dd>
+          <dt>Candles</dt><dd data-k="lives" class="pips life"></dd>
+          <dt>Litanies</dt><dd data-k="bombs" class="pips bomb"></dd>
+          <dt>Ember</dt><dd data-k="power">4.00</dd>
+          <dt>Graze</dt><dd data-k="graze">0</dd>
+        </dl>
+        <div class="meter"><span>Vigil</span><div class="bar"><i data-k="vigil"></i></div></div>
+        <p class="keys">
+          Arrows move · <b>Z</b> shoot · <b>Shift</b> focus<br />
+          <b>X</b> Litany · <b>C</b> Vigil · <b>Esc</b> pause<br />
+          <b>1–5</b> jump to phase · <b>`</b> stats · <b>M</b> mute
+        </p>
+      </section>
+
+      <!-- Portrait top strip -->
+      <section id="strip" class="hud">
+        <span data-k="score">0</span>
+        <span data-k="lives" class="pips life"></span>
+        <span data-k="bombs" class="pips bomb"></span>
+        <button id="pause-btn" aria-label="Pause">❚❚</button>
+      </section>
+
+      <!-- Portrait thumb zone -->
+      <section id="controls" class="hud">
+        <div class="meter"><span>Vigil</span><div class="bar"><i data-k="vigil"></i></div><span class="graze">Graze <b data-k="graze">0</b></span></div>
+        <div class="buttons">
+          <button id="btn-focus" class="ctl">Focus</button>
+          <button id="btn-skill" class="ctl">Vigil</button>
+          <button id="btn-bomb" class="ctl">Litany</button>
+        </div>
+        <p class="hint">Drag anywhere to move · second finger also focuses</p>
+      </section>
+
+      <!-- Boss UI, positioned over the field -->
+      <section id="boss">
+        <div class="boss-row"><span class="boss-name">Training Effigy</span><span class="boss-timer" data-k="timer"></span></div>
+        <div class="hp"><i data-k="hp"></i></div>
+        <div class="elegy" data-k="elegy"></div>
+      </section>
+      <div id="banner"></div>
+      <div id="debug"></div>
+
+      <!-- Screens -->
+      <section id="title" class="screen show">
+        <div class="title-inner">
+          <p class="eyebrow">M0 · Technical Prototype</p>
+          <h1>Vespertine</h1>
+          <p class="sub">Elegy of the Unremembered</p>
+          <blockquote>In the hundredth year of the Long Dusk,<br />the sun still has not set.</blockquote>
+          <p class="start">Tap or press Z to begin</p>
+          <p class="who">Sayo Kagari · Keeper of the Last Lantern</p>
+        </div>
+      </section>
+      <section id="pause" class="screen">
+        <div class="menu">
+          <h2>Paused</h2>
+          <button data-act="resume">Resume</button>
+          <button data-act="restart">Restart</button>
+          <button data-act="mute">Sound: On</button>
+          <button data-act="flash">Reduce flashing: Off</button>
+        </div>
+      </section>
+      <section id="over" class="screen">
+        <div class="menu">
+          <h2>The candle gutters.</h2>
+          <p class="over-score"></p>
+          <button data-act="restart">Light it again</button>
+        </div>
+      </section>
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
