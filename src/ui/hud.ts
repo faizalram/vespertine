@@ -18,6 +18,9 @@ export class Hud {
   private bossCard = $('#boss-card');
   private cutin = $('#cutin');
   private capture = $('#capture');
+  private recollection = $('#recollection');
+  /** Score shown in the HUD rolls up toward the real score. */
+  private shownScore = 0;
   private dlg = $('#dialogue');
   private dlgLeft = $<HTMLCanvasElement>('#dialogue .portrait.left');
   private dlgRight = $<HTMLCanvasElement>('#dialogue .portrait.right');
@@ -116,6 +119,15 @@ export class Hud {
     this.cutin.classList.add('play');
   }
 
+  showRecollection(text: string): void {
+    $('#recollection .r-text').textContent = text;
+    this.flashEl(this.recollection, 5200);
+  }
+
+  resetScore(): void {
+    this.shownScore = 0;
+  }
+
   showCapture(g: Game): void {
     const c = g.lastCapture;
     if (!c) return;
@@ -167,7 +179,12 @@ export class Hud {
     const p = g.player;
     this.hiScore = Math.max(this.hiScore, g.score);
     this.set('diff', DIFFICULTIES[g.diff]);
-    this.set('score', g.score.toLocaleString('en-US'));
+    this.set('stageLabel', g.stageInfo ? `Stage ${g.stageInfo.number}` : '');
+    this.set('recollections', `${g.recollected.length} / 30`);
+    // Roll the displayed score toward the real one (and snap down instantly after a continue).
+    if (g.score < this.shownScore) this.shownScore = g.score;
+    else this.shownScore += Math.ceil((g.score - this.shownScore) * 0.18);
+    this.set('score', this.shownScore.toLocaleString('en-US'));
     this.set('hi', this.hiScore.toLocaleString('en-US'));
     this.set('lives', '●'.repeat(Math.max(0, p.lives)) || '—');
     this.set('bombs', '✦'.repeat(Math.max(0, p.bombs)) || '—');

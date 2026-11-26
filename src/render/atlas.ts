@@ -959,6 +959,380 @@ const drawReticle: Draw = (c, w) => {
   }
 };
 
+/** Remnant: a pale, faceless paperwraith, barely there. */
+const drawRemnant: Draw = (c, w, h) => {
+  const cx = w / 2;
+  c.fillStyle = radial(c, cx, h * 0.45, 4, w * 0.55, [[0, 'rgba(230,240,255,0.55)'], [1, 'rgba(200,210,240,0)']]);
+  c.fillRect(0, 0, w, h);
+  c.fillStyle = 'rgba(240,244,255,0.85)';
+  c.beginPath();
+  c.moveTo(cx, h * 0.12);
+  c.quadraticCurveTo(cx + 14, h * 0.14, cx + 14, h * 0.34);
+  c.quadraticCurveTo(cx + 20, h * 0.6, cx + 16, h * 0.9);
+  c.lineTo(cx + 9, h * 0.8);
+  c.lineTo(cx + 3, h * 0.94);
+  c.lineTo(cx - 4, h * 0.82);
+  c.lineTo(cx - 11, h * 0.95);
+  c.lineTo(cx - 16, h * 0.86);
+  c.quadraticCurveTo(cx - 20, h * 0.6, cx - 14, h * 0.34);
+  c.quadraticCurveTo(cx - 14, h * 0.14, cx, h * 0.12);
+  c.fill();
+  // A blank face where the features were.
+  ellipse(c, cx, h * 0.3, 8, 9, 'rgba(255,255,255,1)');
+  c.strokeStyle = 'rgba(150,160,190,0.5)';
+  c.lineWidth = 1;
+  c.beginPath();
+  c.moveTo(cx - 4, h * 0.3);
+  c.lineTo(cx + 4, h * 0.3);
+  c.stroke();
+};
+
+const drawItemRecollection: Draw = (c, w, h) => {
+  const cx = w / 2;
+  c.fillStyle = radial(c, cx, h / 2, 0, w / 2, [[0, 'rgba(255,255,255,0.9)'], [0.5, 'rgba(200,220,255,0.4)'], [1, 'rgba(180,200,255,0)']]);
+  c.fillRect(0, 0, w, h);
+  c.fillStyle = '#ffffff';
+  c.beginPath();
+  c.moveTo(cx, 3);
+  c.lineTo(cx + 7, h / 2);
+  c.lineTo(cx, h - 3);
+  c.lineTo(cx - 7, h / 2);
+  c.closePath();
+  c.fill();
+  c.strokeStyle = 'rgba(140,170,230,0.9)';
+  c.lineWidth = 1.5;
+  c.stroke();
+};
+
+/** Coin: a disc with a square hole (tinted). */
+const drawCoin: Draw = (c, w) => {
+  const r = w / 2;
+  ellipse(c, r, r, r - 1, r - 1, OUTLINE);
+  ellipse(c, r, r, r - 3, r - 3, BODY);
+  c.strokeStyle = CORE;
+  c.lineWidth = 2;
+  c.beginPath();
+  c.arc(r, r, r - 6, 0, Math.PI * 2);
+  c.stroke();
+  c.fillStyle = 'rgba(0,0,0,0.85)';
+  c.fillRect(r - 3, r - 3, 6, 6);
+};
+
+/** Glyph: a small hand-written character, like a letter torn off a page (tinted). */
+const drawGlyph: Draw = (c, w, h) => {
+  c.fillStyle = OUTLINE;
+  c.fillRect(1, 1, w - 2, h - 2);
+  c.fillStyle = BODY;
+  c.fillRect(2.5, 2.5, w - 5, h - 5);
+  c.strokeStyle = CORE;
+  c.lineWidth = 2;
+  c.lineCap = 'round';
+  c.beginPath();
+  c.moveTo(w * 0.3, h * 0.25);
+  c.lineTo(w * 0.7, h * 0.25);
+  c.moveTo(w * 0.5, h * 0.25);
+  c.lineTo(w * 0.45, h * 0.78);
+  c.moveTo(w * 0.28, h * 0.55);
+  c.lineTo(w * 0.72, h * 0.6);
+  c.stroke();
+};
+
+/** Beam: a horizontal soft bar, bright core (tinted). Used for laser glow and warnings. */
+const drawBeam: Draw = (c, w, h) => {
+  const g = c.createLinearGradient(0, 0, 0, h);
+  g.addColorStop(0, 'rgba(255,0,0,0)');
+  g.addColorStop(0.3, 'rgba(255,90,0,0.7)');
+  g.addColorStop(0.5, 'rgba(255,255,0,1)');
+  g.addColorStop(0.7, 'rgba(255,90,0,0.7)');
+  g.addColorStop(1, 'rgba(255,0,0,0)');
+  c.fillStyle = g;
+  c.fillRect(0, 0, w, h);
+};
+
+/** Koi spirit, drawn facing down. */
+const drawKoi: Draw = (c, w, h) => {
+  const cx = w / 2;
+  c.fillStyle = radial(c, cx, h * 0.5, 2, w * 0.6, [[0, 'rgba(255,200,170,0.35)'], [1, 'rgba(255,160,120,0)']]);
+  c.fillRect(0, 0, w, h);
+  c.fillStyle = '#f2ece4';
+  c.beginPath();
+  c.ellipse(cx, h * 0.55, w * 0.22, h * 0.32, 0, 0, Math.PI * 2);
+  c.fill();
+  c.fillStyle = '#e05a3a';
+  ellipse(c, cx - 3, h * 0.5, 5, 7, '#e05a3a');
+  ellipse(c, cx + 4, h * 0.68, 4, 5, '#e05a3a');
+  // Tail fins (top, since she swims down).
+  c.fillStyle = 'rgba(242,236,228,0.8)';
+  c.beginPath();
+  c.moveTo(cx, h * 0.25);
+  c.lineTo(cx - 10, h * 0.02);
+  c.lineTo(cx, h * 0.12);
+  c.lineTo(cx + 10, h * 0.02);
+  c.closePath();
+  c.fill();
+  ellipse(c, cx - 4, h * 0.8, 1.6, 1.6, '#1a1a1a');
+  ellipse(c, cx + 4, h * 0.8, 1.6, 1.6, '#1a1a1a');
+};
+
+const drawPaperBoat: Draw = (c, w, h) => {
+  const cx = w / 2;
+  c.fillStyle = '#efe4c8';
+  c.beginPath();
+  c.moveTo(2, h * 0.55);
+  c.lineTo(w - 2, h * 0.55);
+  c.lineTo(w * 0.78, h * 0.85);
+  c.lineTo(w * 0.22, h * 0.85);
+  c.closePath();
+  c.fill();
+  c.fillStyle = '#d8cba8';
+  c.beginPath();
+  c.moveTo(cx, h * 0.1);
+  c.lineTo(w * 0.78, h * 0.55);
+  c.lineTo(w * 0.22, h * 0.55);
+  c.closePath();
+  c.fill();
+  c.strokeStyle = 'rgba(90,70,50,0.6)';
+  c.lineWidth = 1;
+  c.beginPath();
+  c.moveTo(cx, h * 0.1);
+  c.lineTo(cx, h * 0.55);
+  c.stroke();
+  // A wish written on the sail.
+  c.fillStyle = 'rgba(160,60,40,0.7)';
+  c.fillRect(cx + 3, h * 0.3, 6, 2);
+  c.fillRect(cx + 3, h * 0.38, 4, 2);
+};
+
+const drawDrownedLantern: Draw = (c, w, h) => {
+  const cx = w / 2;
+  const cy = h / 2;
+  c.fillStyle = radial(c, cx, cy, 4, w / 2, [[0, 'rgba(160,255,240,0.6)'], [1, 'rgba(80,200,190,0)']]);
+  c.fillRect(0, 0, w, h);
+  c.fillStyle = '#bfeee4';
+  c.beginPath();
+  c.ellipse(cx, cy, w * 0.28, h * 0.34, 0, 0, Math.PI * 2);
+  c.fill();
+  c.strokeStyle = 'rgba(40,110,110,0.6)';
+  c.lineWidth = 1.2;
+  for (let i = -2; i <= 2; i++) {
+    c.beginPath();
+    c.ellipse(cx, cy, Math.abs(i) * w * 0.065 + 0.5, h * 0.34, 0, 0, Math.PI * 2);
+    c.stroke();
+  }
+  c.fillStyle = '#1e4a4a';
+  c.fillRect(cx - w * 0.15, cy - h * 0.38, w * 0.3, 4);
+  c.fillRect(cx - w * 0.15, cy + h * 0.34, w * 0.3, 4);
+  // A price, painted on.
+  c.fillStyle = '#7a3020';
+  c.font = `bold ${Math.round(h * 0.2)}px Georgia, serif`;
+  c.textAlign = 'center';
+  c.textBaseline = 'middle';
+  c.fillText('¤', cx, cy + 1);
+};
+
+/** Inkmoth: dark wings with pale eye-spots, drawn facing down. */
+const drawInkmoth: Draw = (c, w, h) => {
+  const cx = w / 2;
+  c.fillStyle = '#1a1424';
+  for (const s of [-1, 1]) {
+    c.beginPath();
+    c.moveTo(cx, h * 0.5);
+    c.quadraticCurveTo(cx + s * w * 0.55, h * 0.05, cx + s * w * 0.46, h * 0.5);
+    c.quadraticCurveTo(cx + s * w * 0.5, h * 0.95, cx, h * 0.6);
+    c.fill();
+  }
+  c.strokeStyle = 'rgba(180,170,220,0.6)';
+  c.lineWidth = 1;
+  c.stroke();
+  ellipse(c, cx - w * 0.25, h * 0.38, 3, 3, '#d8d0f0');
+  ellipse(c, cx + w * 0.25, h * 0.38, 3, 3, '#d8d0f0');
+  ellipse(c, cx, h * 0.55, 2.5, h * 0.2, '#2a2234');
+};
+
+const drawBook: Draw = (c, w, h) => {
+  const cx = w / 2;
+  c.fillStyle = radial(c, cx, h / 2, 4, w * 0.6, [[0, 'rgba(255,230,180,0.35)'], [1, 'rgba(255,200,140,0)']]);
+  c.fillRect(0, 0, w, h);
+  c.fillStyle = '#5a1e2a';
+  c.beginPath();
+  c.moveTo(cx, h * 0.3);
+  c.lineTo(w * 0.04, h * 0.2);
+  c.lineTo(w * 0.04, h * 0.78);
+  c.lineTo(cx, h * 0.88);
+  c.lineTo(w * 0.96, h * 0.78);
+  c.lineTo(w * 0.96, h * 0.2);
+  c.closePath();
+  c.fill();
+  c.fillStyle = '#f2ead8';
+  c.beginPath();
+  c.moveTo(cx, h * 0.34);
+  c.lineTo(w * 0.1, h * 0.24);
+  c.lineTo(w * 0.1, h * 0.74);
+  c.lineTo(cx, h * 0.84);
+  c.lineTo(w * 0.9, h * 0.74);
+  c.lineTo(w * 0.9, h * 0.24);
+  c.closePath();
+  c.fill();
+  c.strokeStyle = 'rgba(90,70,60,0.55)';
+  c.lineWidth = 1;
+  for (let i = 0; i < 4; i++) {
+    c.beginPath();
+    c.moveTo(w * 0.16, h * (0.36 + i * 0.1));
+    c.lineTo(cx - 4, h * (0.44 + i * 0.1));
+    c.moveTo(cx + 4, h * (0.44 + i * 0.1));
+    c.lineTo(w * 0.84, h * (0.36 + i * 0.1));
+    c.stroke();
+  }
+};
+
+const drawQuill: Draw = (c, w, h) => {
+  const cx = w / 2;
+  c.fillStyle = '#e8e2f2';
+  c.beginPath();
+  c.moveTo(cx, h * 0.95);
+  c.quadraticCurveTo(cx + w * 0.45, h * 0.4, cx + 2, h * 0.02);
+  c.quadraticCurveTo(cx - w * 0.3, h * 0.45, cx, h * 0.95);
+  c.fill();
+  c.strokeStyle = '#3a3050';
+  c.lineWidth = 1.5;
+  c.beginPath();
+  c.moveTo(cx, h * 0.98);
+  c.lineTo(cx + 1, h * 0.1);
+  c.stroke();
+  ellipse(c, cx, h * 0.96, 2, 2, '#1a1424');
+};
+
+/** Ondine Vesk: wide merchant hat, teal coat, coin necklace, floating hair. */
+const drawOndineSprite: Draw = (c, w, h) => {
+  const cx = w / 2;
+  c.fillStyle = radial(c, cx, h * 0.5, 10, w * 0.5, [[0, 'rgba(120,230,220,0.3)'], [1, 'rgba(60,160,160,0)']]);
+  c.fillRect(0, 0, w, h);
+  c.fillStyle = '#2a6a6a';
+  c.beginPath();
+  c.moveTo(cx - 16, h * 0.3);
+  c.bezierCurveTo(cx - 40, h * 0.45, cx - 26, h * 0.6, cx - 38, h * 0.72);
+  c.lineTo(cx + 38, h * 0.72);
+  c.bezierCurveTo(cx + 26, h * 0.6, cx + 40, h * 0.45, cx + 16, h * 0.3);
+  c.fill();
+  c.fillStyle = '#1f5a58';
+  c.beginPath();
+  c.moveTo(cx - 14, h * 0.42);
+  c.lineTo(cx + 14, h * 0.42);
+  c.lineTo(cx + 30, h * 0.92);
+  c.lineTo(cx - 30, h * 0.92);
+  c.closePath();
+  c.fill();
+  c.fillStyle = '#e0b04a';
+  c.fillRect(cx - 30, h * 0.88, 60, 4);
+  for (let i = 0; i < 7; i++) {
+    const a = Math.PI * (0.2 + (i / 6) * 0.6);
+    ellipse(c, cx + Math.cos(a) * 12, h * 0.42 + Math.sin(a) * 8, 2.5, 2.5, '#f0c860');
+  }
+  // Abacus in one hand.
+  c.fillStyle = '#4a2a1a';
+  c.fillRect(cx + 22, h * 0.52, 16, 12);
+  c.fillStyle = '#e0b04a';
+  for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) ellipse(c, cx + 25 + j * 5, h * 0.55 + i * 3.5, 1.5, 1.2, '#e0b04a');
+  c.fillStyle = '#e8c8b0';
+  c.beginPath();
+  c.ellipse(cx, h * 0.3, 10, 11, 0, 0, Math.PI * 2);
+  c.fill();
+  c.fillStyle = '#16302e';
+  c.beginPath();
+  c.ellipse(cx, h * 0.2, 34, 7, -0.08, 0, Math.PI * 2);
+  c.fill();
+  c.beginPath();
+  c.moveTo(cx - 14, h * 0.2);
+  c.quadraticCurveTo(cx - 12, h * 0.04, cx + 2, h * 0.04);
+  c.quadraticCurveTo(cx + 16, h * 0.05, cx + 14, h * 0.2);
+  c.fill();
+  c.fillStyle = '#e0b04a';
+  c.fillRect(cx - 14, h * 0.16, 28, 3);
+  ellipse(c, cx - 4, h * 0.3, 1.6, 1.6, '#1a2a2a');
+  ellipse(c, cx + 4, h * 0.3, 1.6, 1.6, '#1a2a2a');
+};
+
+/** Seraphine Lull: long pale hair, grey-blue robe, open book, spectacles. */
+const drawSeraphineSprite: Draw = (c, w, h) => {
+  const cx = w / 2;
+  c.fillStyle = radial(c, cx, h * 0.5, 10, w * 0.5, [[0, 'rgba(240,230,210,0.3)'], [1, 'rgba(200,190,170,0)']]);
+  c.fillRect(0, 0, w, h);
+  c.fillStyle = '#e8e4dc';
+  c.beginPath();
+  c.moveTo(cx - 14, h * 0.24);
+  c.quadraticCurveTo(cx - 24, h * 0.6, cx - 20, h * 0.86);
+  c.lineTo(cx + 20, h * 0.86);
+  c.quadraticCurveTo(cx + 24, h * 0.6, cx + 14, h * 0.24);
+  c.fill();
+  c.fillStyle = '#4a5a72';
+  c.beginPath();
+  c.moveTo(cx - 12, h * 0.4);
+  c.lineTo(cx + 12, h * 0.4);
+  c.lineTo(cx + 26, h * 0.95);
+  c.lineTo(cx - 26, h * 0.95);
+  c.closePath();
+  c.fill();
+  // Open book held before her.
+  c.fillStyle = '#f2ead8';
+  c.beginPath();
+  c.moveTo(cx, h * 0.56);
+  c.lineTo(cx - 20, h * 0.5);
+  c.lineTo(cx - 20, h * 0.66);
+  c.lineTo(cx, h * 0.7);
+  c.lineTo(cx + 20, h * 0.66);
+  c.lineTo(cx + 20, h * 0.5);
+  c.closePath();
+  c.fill();
+  c.fillStyle = '#f3e2d4';
+  c.beginPath();
+  c.ellipse(cx, h * 0.28, 9.5, 11, 0, 0, Math.PI * 2);
+  c.fill();
+  c.strokeStyle = '#8a7a5a';
+  c.lineWidth = 1.2;
+  c.beginPath();
+  c.arc(cx - 4.5, h * 0.29, 3.5, 0, Math.PI * 2);
+  c.arc(cx + 4.5, h * 0.29, 3.5, 0, Math.PI * 2);
+  c.stroke();
+  c.fillStyle = '#e8e4dc';
+  c.beginPath();
+  c.moveTo(cx - 11, h * 0.26);
+  c.quadraticCurveTo(cx, h * 0.12, cx + 11, h * 0.26);
+  c.quadraticCurveTo(cx, h * 0.2, cx - 11, h * 0.26);
+  c.fill();
+};
+
+/** The Inkmoth Swarm's heart: a great moth. */
+const drawMothQueen: Draw = (c, w, h) => {
+  const cx = w / 2;
+  c.fillStyle = radial(c, cx, h * 0.5, 10, w * 0.5, [[0, 'rgba(160,140,220,0.35)'], [1, 'rgba(100,80,160,0)']]);
+  c.fillRect(0, 0, w, h);
+  c.fillStyle = '#1a1424';
+  for (const s of [-1, 1]) {
+    c.beginPath();
+    c.moveTo(cx, h * 0.45);
+    c.bezierCurveTo(cx + s * w * 0.6, h * 0.0, cx + s * w * 0.55, h * 0.45, cx + s * w * 0.42, h * 0.55);
+    c.bezierCurveTo(cx + s * w * 0.5, h * 0.9, cx + s * w * 0.2, h * 0.85, cx, h * 0.6);
+    c.fill();
+  }
+  c.strokeStyle = 'rgba(200,190,240,0.55)';
+  c.lineWidth = 1.5;
+  c.stroke();
+  for (const s of [-1, 1]) {
+    ellipse(c, cx + s * w * 0.27, h * 0.3, 9, 9, '#efe8ff');
+    ellipse(c, cx + s * w * 0.27, h * 0.3, 4, 4, '#2a2040');
+    ellipse(c, cx + s * w * 0.22, h * 0.68, 5, 5, '#d8d0f0');
+  }
+  ellipse(c, cx, h * 0.5, 6, h * 0.22, '#2a2234');
+  c.strokeStyle = '#2a2234';
+  c.lineWidth = 2;
+  c.beginPath();
+  c.moveTo(cx - 2, h * 0.3);
+  c.quadraticCurveTo(cx - 10, h * 0.12, cx - 16, h * 0.1);
+  c.moveTo(cx + 2, h * 0.3);
+  c.quadraticCurveTo(cx + 10, h * 0.12, cx + 16, h * 0.1);
+  c.stroke();
+};
+
 const DEFS: Def[] = [
   { id: S.orb, w: 32, h: 32, mode: MODE_TINT, draw: drawOrb },
   { id: S.rice, w: 18, h: 34, mode: MODE_TINT, draw: drawRice },
@@ -1004,6 +1378,21 @@ const DEFS: Def[] = [
   { id: S.boat, w: 240, h: 132, mode: MODE_RAW, draw: drawBoat },
   { id: S.itemSoul, w: 22, h: 28, mode: MODE_RAW, draw: drawItemSoul },
   { id: S.reticle, w: 32, h: 32, mode: MODE_TINT, draw: drawReticle },
+  { id: S.remnant, w: 48, h: 56, mode: MODE_RAW, draw: drawRemnant },
+  { id: S.itemRecollection, w: 26, h: 32, mode: MODE_RAW, draw: drawItemRecollection },
+  { id: S.coin, w: 28, h: 28, mode: MODE_TINT, draw: drawCoin },
+  { id: S.glyph, w: 20, h: 24, mode: MODE_TINT, draw: drawGlyph },
+  { id: S.beam, w: 64, h: 32, mode: MODE_TINT, draw: drawBeam },
+  { id: S.koi, w: 36, h: 48, mode: MODE_RAW, draw: drawKoi },
+  { id: S.paperBoat, w: 44, h: 36, mode: MODE_RAW, draw: drawPaperBoat },
+  { id: S.drownedLantern, w: 64, h: 72, mode: MODE_RAW, draw: drawDrownedLantern },
+  { id: S.inkmoth, w: 40, h: 36, mode: MODE_RAW, draw: drawInkmoth },
+  { id: S.book, w: 64, h: 52, mode: MODE_RAW, draw: drawBook },
+  { id: S.quill, w: 20, h: 44, mode: MODE_RAW, draw: drawQuill },
+  { id: S.ondine, w: 128, h: 144, mode: MODE_RAW, draw: drawOndineSprite },
+  { id: S.seraphine, w: 128, h: 144, mode: MODE_RAW, draw: drawSeraphineSprite },
+  { id: S.mothQueen, w: 160, h: 128, mode: MODE_RAW, draw: drawMothQueen },
+  { id: S.ghost, w: 32, h: 32, mode: MODE_TINT, draw: drawWisp },
 ];
 
 export interface Atlas {

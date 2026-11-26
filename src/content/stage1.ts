@@ -5,6 +5,7 @@ import { IT, type BossDef, type CharId, type DialogueDef, type EnemyDef, type In
 import type { Enemy, Game } from '../game/game';
 import { C } from '../game/palette';
 import { S } from '../game/sprites';
+import { recollectionIndex } from './recollections';
 
 /**
  * Stage 1 — Fields of Unharvested Names (spec §4.3, §5).
@@ -14,6 +15,7 @@ import { S } from '../game/sprites';
 
 export const STAGE1_INFO: StageInfo = {
   number: 1,
+  scene: 'fields',
   title: 'Fields of Unharvested Names',
   poem: ['Somebody planted this.', 'Somebody meant to come back.'],
   music: 'stage1',
@@ -26,6 +28,21 @@ const CHAFF_PT: EnemyDef = { sprite: S.chaff, hp: 10, r: 12, drops: [IT.point] }
 const CROW: EnemyDef = { sprite: S.crow, hp: 7, r: 11, drops: [IT.point], orient: true };
 const LANTERN: EnemyDef = { sprite: S.fieldLantern, hp: 120, r: 18, drops: [IT.powerBig, IT.powerBig, IT.point, IT.point, IT.point, IT.point] };
 const FAMILIAR: EnemyDef = { sprite: S.crow, hp: 1, r: 1, drops: [] };
+
+/** Remnant: a pale, slow, easily-missed paperwraith carrying a Recollection (spec §6.5). */
+export const REMNANT: EnemyDef = { sprite: S.remnant, hp: 26, r: 13, drops: [IT.point, IT.point], score: 5000 };
+
+export function remnant(g: Game, stage: number, slot: number, fromLeft: boolean, y: number): void {
+  const e = g.enemy(REMNANT, fromLeft ? -20 : FIELD_W + 20, y, function* (_g, en): Task {
+    const dir = fromLeft ? 1 : -1;
+    for (let t = 0; ; t++) {
+      en.vx = dir * 0.85;
+      en.vy = Math.sin(t * 0.03) * 0.35;
+      yield;
+    }
+  });
+  e.recollection = recollectionIndex(stage, slot);
+}
 
 /** Aimed shot helper that respects difficulty. */
 function aimed(g: Game, e: Enemy, color: number = C.azure): void {
@@ -224,7 +241,7 @@ export const CROW_MATRON: BossDef = {
   midboss: true,
   phases: [
     { id: 'matron.wings', elegy: null, hp: 900, time: 22, run: matronWingbeats },
-    { id: 'matron.flock', elegy: 'Murmur Elegy “A Flock With No Memory of South”', hp: 1300, time: 32, run: matronFlock },
+    { id: 'matron.flock', elegy: 'Murmur Elegy “A Flock With No Memory of South”', hp: 1300, time: 32, recollection: 6, run: matronFlock },
   ],
 };
 
@@ -365,10 +382,10 @@ export const HOSHIKO: BossDef = {
   portrait: 'hoshiko',
   phases: [
     { id: 'hoshiko.song', elegy: null, hp: 1700, time: 32, run: hoshikoHarvestSong },
-    { id: 'hoshiko.grain', elegy: 'Harvest Elegy “Grain That Was Never Sown”', hp: 2300, time: 42, run: hoshikoGrain },
+    { id: 'hoshiko.grain', elegy: 'Harvest Elegy “Grain That Was Never Sown”', hp: 2300, time: 42, recollection: 7, run: hoshikoGrain },
     { id: 'hoshiko.sickles', elegy: null, hp: 1800, time: 32, run: hoshikoSickles },
-    { id: 'hoshiko.crows', elegy: 'Field Elegy “Crows Who Forgot the Way Home”', hp: 2500, time: 45, run: hoshikoCrows },
-    { id: 'hoshiko.guard', elegy: 'Scarecrow Elegy “Standing Guard Over Nothing”', hp: 1, time: 30, survival: true, run: hoshikoStandingGuard },
+    { id: 'hoshiko.crows', elegy: 'Field Elegy “Crows Who Forgot the Way Home”', hp: 2500, time: 45, recollection: 8, run: hoshikoCrows },
+    { id: 'hoshiko.guard', elegy: 'Scarecrow Elegy “Standing Guard Over Nothing”', hp: 1, time: 30, survival: true, recollection: 9, run: hoshikoStandingGuard },
   ],
 };
 
@@ -584,7 +601,7 @@ export function registerStage1Bursts(g: Game): void {
   });
 }
 
-function* clearField(g: Game): Task {
+export function* clearField(g: Game): Task {
   while (g.enemies.some((e) => e.alive && !e.intangible)) yield;
 }
 
@@ -594,14 +611,17 @@ export function* stage1(g: Game): Task {
 
   if (g.startAt === 'start') {
     yield* wait(180);
+    remnant(g, 1, 0, true, 70);
     yield* waveChaffLines(g);
     yield* wait(40);
+    remnant(g, 1, 1, false, 110);
     yield* waveCrows(g, 10);
     yield* wait(60);
     g.enemy(LANTERN, FIELD_W / 2, -24, lanternHold(120, 300));
     yield* wait(80);
     g.stageSched.add(waveCrows(g, 6));
     yield* wait(300);
+    remnant(g, 1, 2, true, 90);
     yield* waveColumns(g);
     yield* wait(80);
     g.enemy(LANTERN, 96, -24, lanternHold(100, 240));
@@ -615,6 +635,7 @@ export function* stage1(g: Game): Task {
   if (g.startAt !== 'boss') {
     yield* g.runBoss(CROW_MATRON);
     yield* wait(90);
+    remnant(g, 1, 3, false, 80);
     yield* waveMurmuration(g);
     yield* wait(60);
     for (let i = 0; i < 3; i++) {
@@ -622,8 +643,10 @@ export function* stage1(g: Game): Task {
       yield* wait(140);
     }
     g.stageSched.add(waveCrows(g, 8));
+    remnant(g, 1, 4, true, 60);
     yield* waveColumns(g);
     yield* wait(40);
+    remnant(g, 1, 5, false, 100);
     yield* waveChaffLines(g);
     yield* clearField(g);
     yield* wait(120);

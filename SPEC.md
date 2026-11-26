@@ -507,6 +507,20 @@ Mobile landscape is supported using the desktop layout, with controls overlaid o
   - **Backgrounds:** low-poly 3D geometry with flat shading, fog and gradient skies (Three.js).
 - **UI:** thin serif typography, candle and paper motifs, ink-stain transitions.
 
+### 8.3.1 Motion & Animation (added in M3)
+
+Motion should feel fluid at any refresh rate and give every object weight and personality. Gameplay hitboxes never change; all of this is presentation.
+
+- **Interpolated rendering:** the simulation stays at a fixed 60 Hz, and every object is drawn at a position interpolated between the last two ticks. Motion stays smooth on 90/120/144 Hz screens.
+- **Heroines:** bank into horizontal movement with a slight squash and stretch, hover gently, leave colour-tinted afterimages when moving fast, and gain a tightening focus ring. Options follow on soft springs instead of being rigidly attached.
+- **Enemies:** pop in with a little overshoot, flap (crows, moths), wiggle (koi, quills) or sway (lanterns, books, boats), squash when hit, and burst outward on death.
+- **Bosses:** breathe, lean into movement, leave afterimages when dashing, gather light before each Elegy (a charge-up ring), and the Elegy sigil spins up with overshoot. Defeat triggers about 1 second of slow motion.
+- **Shots and bullets:** stretch along their velocity; wisps and soul-lights trail tails; large bullets get a soft halo; coins spin.
+- **Lasers:** a pulsing warning line, a snap-open with overshoot, then a fade. Redaction bars are black with a trembling pale edge.
+- **Items:** bob in place; items flying to the player stretch toward her; Recollection shards pulse like a heartbeat.
+- **2.5D camera:** leans and rolls with the player's horizontal position and speed, pulls in when a boss arrives, rolls on a spring at each Elegy declaration, and punches its field of view on bombs.
+- **UI:** screens cross-fade and rise in; dialogue portraits slide in; HP and meter bars ease; the score rolls up; banners settle with widening letter-spacing.
+
 ### 8.4 Audio
 
 - **Music:** a melodic, emotional style with a strong lead melody (piano, erhu or violin, flute) over driving rhythm and synth. Every stage and every boss has its own named theme (for example, Stage 1: *"Rice Grows for Nobody"*; Amaranth: *"Requiem for a Saint Who Wanted Everyone to Be Happy"*).
@@ -690,10 +704,10 @@ The save is versioned with migrations, and there's an export/import feature (as 
 
 | Milestone | Scope | Exit criteria |
 |---|---|---|
-| **M0: Technical prototype** | Loop, input (keyboard + touch + gamepad), one player, bullet pool and renderer, one 3D scrolling background, a test pattern | 2,000 bullets at 60 fps on a mid-range phone; touch movement feels right |
-| **M1: Vertical slice** | Stage 1 complete with **Sayo**: enemies, midboss, Hoshiko with 3 Elegies, dialogue, HUD, items, lives and bombs, stage card, pause, continue screen | Stage 1 is fun and readable start to finish on desktop and phone |
-| **M2: The four** | Ilse, Tessel and Wren with full mechanics; character select; Stage 1 dialogue for all four | Each character feels clearly distinct in blind playtests |
-| **M3: Act One** | Stages 2 and 3 with bosses, Vigil interludes, Recollections and Codex | A run from Stage 1 to 3 works for all characters |
+| **M0: Technical prototype** ✅ | Loop, input (keyboard + touch + gamepad), one player, bullet pool and renderer, one 3D scrolling background, a test pattern | 2,000 bullets at 60 fps on a mid-range phone; touch movement feels right |
+| **M1: Vertical slice** ✅ | Stage 1 complete with **Sayo**: enemies, midboss, Hoshiko with 3 Elegies, dialogue, HUD, items, lives and bombs, stage card, pause, continue screen | Stage 1 is fun and readable start to finish on desktop and phone |
+| **M2: The four** ✅ | Ilse, Tessel and Wren with full mechanics; character select; Stage 1 dialogue for all four | Each character feels clearly distinct in blind playtests |
+| **M3: Act One** ✅ | Stages 2 and 3 with bosses, Vigil interludes, Recollections and Codex, plus the motion and animation pass (§8.3.1) | A run from Stage 1 to 3 works for all characters |
 | **M4: Act Two** | Stages 4 to 6, rivals, Mother Cinder, Amaranth, the Final Choice, 12 endings, staff roll | Story Mode can be completed with every ending reachable |
 | **M5: Polish & ship** | PWA and offline, settings and accessibility, adaptive quality, audio pass, difficulty balancing, save import/export | Lighthouse PWA checks pass; full runs on iOS and Android browsers |
 | **M6: True End** | "The First Sunset" epilogue | All 13 endings available |
@@ -728,6 +742,11 @@ The save is versioned with migrations, and there's an export/import feature (as 
 | 2 | Music & SFX | **Placeholder sound**: WebAudio-synthesised SFX and procedural music loops (§8.4) |
 | 3 | Continues | **Gentle allows 1 continue** and still reaches the Good End (§6.3) |
 | 4 | Languages | **English only.** Text lives in plain content files; no i18n framework |
+
+### Story threads introduced in Act One
+- **Amari's prayer** surfaces twice on Sayo's route: Ondine's oldest pawn ticket ("her grief, too heavy for my shelves; it went up") and the one book Seraphine can never rewrite ("Let no one ever grieve as I grieve"). This seeds the Stage 6 reveal.
+- **Tessel's maker** is hinted at by Ondine: a tall, quiet woman "who wore white like a nun" bought the parts to build "someone to remember them". Candidates: Mother Cinder (Stage 5). To be resolved in Act Two.
+- **Mother Cinder** is seen passing up the Procession Road on Wren's route (Stages 2 and 3), calling forgetting "the kindest work in the world".
 
 ### Still open
 1. **Final Choice:** keep the choice unannounced (it's more powerful) or hint at it in the Codex?

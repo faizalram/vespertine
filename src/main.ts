@@ -1,25 +1,33 @@
 import './style.css';
 import { AudioEngine, type Sfx } from './audio/audio';
 import { practiceScript } from './content/practice';
-import { STAGE1_STORY, stage1 } from './content/stage1';
+import { RECOLLECTIONS } from './content/recollections';
+import { HOSHIKO, CROW_MATRON, STAGE1_STORY, type StageStory } from './content/stage1';
+import { HOSHIKO_REMATCH, ONDINE, STAGE2_STORY } from './content/stage2';
+import { INKMOTH_SWARM, SERAPHINE, STAGE3_STORY } from './content/stage3';
+import { storyScript } from './content/story';
 import { Input } from './core/input';
 import { TICK } from './game/constants';
 import { CHARACTERS } from './game/characters';
-import { CHAR_IDS, DIFFICULTIES, type CharId, type DifficultyId } from './game/defs';
+import { CHAR_IDS, DIFFICULTIES, type BossDef, type CharId, type DifficultyId, type Speaker } from './game/defs';
 import { EMPTY_INPUT, Game, type GameOptions } from './game/game';
 import { Renderer } from './render/renderer';
 import { Hud } from './ui/hud';
 import { computeLayout, readSafeInsets, type Layout } from './ui/layout';
-import { paintPortrait } from './ui/portraits';
+import { paintPortrait, SPEAKER_NAMES } from './ui/portraits';
 
-type State = 'title' | 'select' | 'difficulty' | 'play' | 'paused' | 'over' | 'clear' | 'interlude';
+type State = 'title' | 'codex' | 'select' | 'difficulty' | 'play' | 'paused' | 'over' | 'clear' | 'interlude';
 
 const params = new URLSearchParams(location.search);
 const GOD = params.has('god');
 const PRACTICE = params.has('practice') || params.has('stress');
 const START_AT: GameOptions['startAt'] = params.has('boss') ? 'boss' : params.has('midboss') ? 'midboss' : 'start';
+const START_STAGE = Math.max(1, Math.min(3, Number(params.get('stage') ?? 1) || 1));
 const FORCED_CHAR = CHAR_IDS.includes(params.get('char') as CharId) ? (params.get('char') as CharId) : null;
 const FORCED_DIFF = params.has('diff') ? (Math.max(0, Math.min(3, Number(params.get('diff')))) as DifficultyId) : null;
+
+const STORIES: readonly Record<CharId, StageStory>[] = [STAGE1_STORY, STAGE2_STORY, STAGE3_STORY];
+const ALL_BOSSES: readonly BossDef[] = [CROW_MATRON, HOSHIKO, HOSHIKO_REMATCH, ONDINE, INKMOTH_SWARM, SERAPHINE];
 
 const $ = <T extends HTMLElement = HTMLElement>(sel: string) => document.querySelector(sel) as T;
 const canvas = $<HTMLCanvasElement>('#gl');
@@ -41,17 +49,20 @@ interface SaveData {
   hi: Record<string, number>;
   elegies: Record<string, { attempts: number; captures: number }>;
   stage1Clears: Record<string, number>;
+  recollections: number[];
+  bossesMet: string[];
 }
 
 const SAVE_KEY = 'vespertine.save.v1';
 function loadSave(): SaveData {
+  const fresh: SaveData = { hi: {}, elegies: {}, stage1Clears: {}, recollections: [], bossesMet: [] };
   try {
     const raw = localStorage.getItem(SAVE_KEY);
-    if (raw) return { hi: {}, elegies: {}, stage1Clears: {}, ...JSON.parse(raw) };
+    if (raw) return { ...fresh, ...JSON.parse(raw) };
   } catch {
     /* storage unavailable or corrupt: start fresh */
   }
-  return { hi: {}, elegies: {}, stage1Clears: {} };
+  return fresh;
 }
 const save = loadSave();
 let charId: CharId = FORCED_CHAR ?? save.lastChar ?? 'sayo';
@@ -71,8 +82,7 @@ function recordHiScore(): void {
 function elegyStat(g: Game) {
   const def = g.boss.def?.phases[g.boss.phase];
   if (!def) return null;
-  const key = `${def.id}|${g.char.id}|${g.diff}`;
-  return (save.elegies[key] ??= { attempts: 0, captures: 0 });
+  return (save.elegies[`${def.id}|${g.char.id}|${g.diff}`] ??= { attempts: 0, captures: 0 });
 }
 
 // ───────────────────────────── layout ─────────────────────────────
@@ -90,18 +100,27 @@ relayout();
 
 // ───────────────────────────── screens ─────────────────────────────
 
-const SCREENS = ['#title', '#select', '#difficulty', '#pause', '#over', '#clear', '#interlude'];
+const SCREENS = ['#title', '#codex', '#select', '#difficulty', '#pause', '#over', '#clear', '#interlude'];
+const MENU_SCREENS = new Set(['#title', '#codex', '#select', '#difficulty', '#interlude']);
 function showScreen(id: string | null): void {
   for (const s of SCREENS) $(s).classList.toggle('show', s === id);
-  document.body.classList.toggle('title-screen', id === '#title' || id === '#select' || id === '#difficulty' || id === '#interlude');
+  document.body.classList.toggle('title-screen', id !== null && MENU_SCREENS.has(id));
   document.body.classList.toggle('menu-open', id !== null);
   if (id) {
-    // Focus the first sensible button for keyboard/gamepad navigation.
-    const first = $(id).querySelector<HTMLButtonElement>('button:not(:disabled):not(.quiet)');
+    const first = $(id).querySelector<HTMLButtonElement>('button:not(:disabled):not(.quiet):not(.tab)');
     first?.focus({ preventScroll: true });
   }
 }
 showScreen('#title');
+
+function toTitle(): void {
+  recordHiScore();
+  game = null;
+  state = 'title';
+  audio.resume();
+  audio.playTrack('title');
+  showScreen('#title');
+}
 
 function enterSelect(): void {
   audio.unlock();
@@ -188,9 +207,10 @@ function startGame(diff: DifficultyId): void {
 }
 
 function newGame(): void {
-  const script = PRACTICE ? practiceScript(params.has('stress')) : stage1;
-  game = new Game(script, { difficulty, char: charId, startAt: START_AT, seed: (Date.now() & 0xffffff) | 1 });
+  const script = PRACTICE ? practiceScript(params.has('stress')) : storyScript;
+  game = new Game(script, { difficulty, char: charId, startAt: START_AT, startStage: START_STAGE, seed: (Date.now() & 0xffffff) | 1 });
   hud.hiScore = save.hi[`${charId}|${difficulty}`] ?? 0;
+  hud.resetScore();
   input.flush();
   audio.resume();
 }
@@ -208,15 +228,6 @@ function resume(): void {
   showScreen(null);
   input.flush();
   audio.resume();
-}
-
-function toTitle(): void {
-  recordHiScore();
-  game = null;
-  state = 'title';
-  audio.resume();
-  audio.playTrack('title');
-  showScreen('#title');
 }
 
 function showContinue(): void {
@@ -238,13 +249,15 @@ function showClear(): void {
   if (!game?.results) return;
   state = 'clear';
   recordHiScore();
-  save.stage1Clears[String(game.diff)] = (save.stage1Clears[String(game.diff)] ?? 0) + 1;
+  if (game.results.stage === 1) save.stage1Clears[String(game.diff)] = (save.stage1Clears[String(game.diff)] ?? 0) + 1;
   persist();
   const r = game.results;
   const rows: Array<[string, string]> = [
+    ['Stage', `${r.stage} · ${game.stageInfo?.title ?? ''}`],
     ['Difficulty', DIFFICULTIES[game.diff]],
     ['Stage clear bonus', r.clearBonus.toLocaleString('en-US')],
     ['Elegies captured', `${r.captures} / ${r.elegies}`],
+    ['Recollections', `${r.recollections} / 30`],
     ['Graze', String(r.graze)],
     ['Continues used', String(game.continuesUsed)],
     ['Score', r.score.toLocaleString('en-US')],
@@ -258,36 +271,158 @@ function showClear(): void {
     dd.textContent = v;
     dl.append(dt, dd);
   }
+  $('#clear h2').textContent = r.final ? 'Act One Clear' : 'Stage Clear';
   setTimeout(() => state === 'clear' && showScreen('#clear'), 1200);
 }
 
+const interludeTimers: number[] = [];
 function showInterlude(): void {
+  if (!game?.results) return;
   state = 'interlude';
   audio.stopMusic();
   showScreen('#interlude');
-  const interlude = STAGE1_STORY[charId].interlude;
+  const stage = game.results.stage;
+  const final = game.results.final;
+  const interlude = STORIES[stage - 1][charId].interlude;
+  interludeTimers.forEach(clearTimeout);
+  interludeTimers.length = 0;
   $('#interlude .il-title').textContent = interlude.title;
   const box = $('#interlude .il-lines');
   box.innerHTML = '';
   const end = $('#interlude .il-end');
+  const onwardBtn = $('#interlude .il-onward');
+  const titleBtn = $('#interlude .il-title-btn');
   end.classList.remove('show');
+  onwardBtn.classList.remove('show');
+  end.textContent = final ? 'End of Act One. The road continues up the Silent Belfry in a later build.' : '';
+  onwardBtn.style.display = final ? 'none' : '';
+  titleBtn.style.display = final ? '' : 'none';
   interlude.lines.forEach((text, i) => {
     const p = document.createElement('p');
     p.textContent = text;
     box.append(p);
-    setTimeout(() => p.classList.add('show'), 600 + i * 1800);
+    interludeTimers.push(window.setTimeout(() => p.classList.add('show'), 600 + i * 1800));
   });
-  setTimeout(() => end.classList.add('show'), 600 + interlude.lines.length * 1800);
+  interludeTimers.push(
+    window.setTimeout(() => {
+      end.classList.add('show');
+      onwardBtn.classList.add('show');
+      (final ? titleBtn : onwardBtn).focus({ preventScroll: true });
+    }, 600 + interlude.lines.length * 1800),
+  );
+}
+
+function onward(): void {
+  if (!game || state !== 'interlude') return;
+  game.nextStage();
+  hud.resetScore();
+  showScreen(null);
+  input.flush();
+  state = 'play';
+}
+
+// ───────────────────────────── codex ─────────────────────────────
+
+let codexTab: 'recollections' | 'people' | 'elegies' = 'recollections';
+
+function openCodex(): void {
+  audio.unlock();
+  state = 'codex';
+  renderCodex();
+  showScreen('#codex');
+}
+
+function renderCodex(): void {
+  document.querySelectorAll<HTMLElement>('#codex .tab').forEach((t) => t.classList.toggle('on', t.dataset.tab === codexTab));
+  const body = $('#codex .codex-body');
+  body.innerHTML = '';
+  const el = (tag: string, cls = '', text = '') => {
+    const e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text) e.textContent = text;
+    return e;
+  };
+  if (codexTab === 'recollections') {
+    const got = new Set(save.recollections);
+    const titles = ['Fields of Unharvested Names', 'The Drowned Lantern Market', 'The Library of Kinder Endings'];
+    for (let s = 1; s <= 3; s++) {
+      const list = RECOLLECTIONS.map((r, i) => [r, i] as const).filter(([r]) => r.stage === s);
+      const have = list.filter(([, i]) => got.has(i)).length;
+      const h = el('h3', '', `Stage ${s} · ${titles[s - 1]}`);
+      h.append(el('small', '', `${have} / ${list.length}`));
+      body.append(h);
+      const ol = el('ol');
+      for (const [r, i] of list) ol.append(got.has(i) ? el('li', '', r.text) : el('li', 'locked', 'Not yet remembered.'));
+      body.append(ol);
+    }
+  } else if (codexTab === 'people') {
+    body.append(el('h3', '', 'Those who remember'));
+    for (const id of CHAR_IDS) body.append(personRow(id, CHARACTERS[id].title, CHARACTERS[id].quote, true));
+    body.append(el('h3', '', 'Those you met on the road'));
+    const bossLines: Array<[Speaker | null, BossDef, string]> = [
+      [null, CROW_MATRON, 'She counts the crows every evening. The number never comes out right.'],
+      ['hoshiko', HOSHIKO, 'Guards a field nobody remembers planting. Somebody planted it. That is enough for her.'],
+      ['ondine', ONDINE, '“Grief is just love with poor liquidity.” Keeps everything nobody came back for.'],
+      [null, INKMOTH_SWARM, 'They eat only endings. The beginnings are all still there.'],
+      ['seraphine', SERAPHINE, 'Rewrites sad stories into happy ones, and cannot understand why the pages go blank.'],
+    ];
+    for (const [speaker, def, blurb] of bossLines) {
+      const met = save.bossesMet.includes(def.id);
+      body.append(personRow(speaker, met ? def.title : '???', met ? blurb : 'Not yet met.', met, met ? def.name : '???'));
+    }
+  } else {
+    const table = el('table', 'elegy-table');
+    for (const def of ALL_BOSSES) {
+      for (const ph of def.phases) {
+        if (!ph.elegy) continue;
+        let attempts = 0;
+        let captures = 0;
+        for (const [k, v] of Object.entries(save.elegies)) {
+          if (k.startsWith(`${ph.id}|`)) {
+            attempts += v.attempts;
+            captures += v.captures;
+          }
+        }
+        const tr = el('tr', attempts ? '' : 'unseen');
+        tr.append(el('td', '', attempts ? ph.elegy : '??? Elegy'), el('td', '', def.name), el('td', 'num', `${captures} / ${attempts}`));
+        table.append(tr);
+      }
+    }
+    body.append(el('h3', '', 'Elegy History'), table);
+  }
+}
+
+function personRow(speaker: Speaker | null, title: string, text: string, unlocked: boolean, name?: string): HTMLElement {
+  const row = document.createElement('div');
+  row.className = `person${unlocked ? '' : ' locked'}`;
+  const cv = document.createElement('canvas');
+  if (speaker && unlocked) paintPortrait(cv, speaker, 'neutral');
+  const info = document.createElement('div');
+  const b = document.createElement('b');
+  b.textContent = name ?? (speaker ? SPEAKER_NAMES[speaker] : '');
+  const i = document.createElement('i');
+  i.textContent = title;
+  const p = document.createElement('p');
+  p.textContent = text;
+  info.append(b, i, p);
+  row.append(cv, info);
+  return row;
 }
 
 // ───────────────────────────── DOM wiring ─────────────────────────────
 
-$('#title').addEventListener('click', () => state === 'title' && enterSelect());
 document.querySelectorAll<HTMLButtonElement>('[data-diff]').forEach((b) =>
   b.addEventListener('click', () => {
     if (state !== 'difficulty' || b.disabled) return;
     audio.play('select');
     startGame(Number(b.dataset.diff) as DifficultyId);
+  }),
+);
+document.querySelectorAll<HTMLButtonElement>('#codex .tab').forEach((b) =>
+  b.addEventListener('click', () => {
+    codexTab = b.dataset.tab as typeof codexTab;
+    audio.play('select');
+    renderCodex();
   }),
 );
 $('#pause-btn').addEventListener('pointerdown', (e) => {
@@ -310,6 +445,16 @@ document.querySelectorAll<HTMLButtonElement>('[data-act]').forEach((b) =>
   b.addEventListener('click', () => {
     audio.play('select');
     switch (b.dataset.act) {
+      case 'story':
+        enterSelect();
+        break;
+      case 'codex':
+        openCodex();
+        break;
+      case 'closeCodex':
+        state = 'title';
+        showScreen('#title');
+        break;
       case 'resume':
         resume();
         break;
@@ -351,6 +496,9 @@ document.querySelectorAll<HTMLButtonElement>('[data-act]').forEach((b) =>
       case 'vigil':
         showInterlude();
         break;
+      case 'onward':
+        onward();
+        break;
     }
   }),
 );
@@ -373,15 +521,17 @@ btnBomb.addEventListener('pointerdown', (e) => {
   input.pressBomb();
 });
 
-/** Keyboard menu navigation: arrows move between buttons, Z / Enter activates. */
+/** Keyboard menu navigation: arrows move between buttons, Z / Enter activates, X / Esc backs out. */
 function menuKey(e: KeyboardEvent): boolean {
   const screenEl = SCREENS.map((s) => $(s)).find((el) => el.classList.contains('show'));
   if (!screenEl) return false;
-  const buttons = Array.from(screenEl.querySelectorAll<HTMLButtonElement>('button')).filter((b) => !b.disabled && b.offsetParent !== null);
+  const buttons = Array.from(screenEl.querySelectorAll<HTMLButtonElement>('button')).filter(
+    (b) => !b.disabled && b.offsetParent !== null && getComputedStyle(b).display !== 'none',
+  );
   if (!buttons.length) return false;
   const idx = buttons.indexOf(document.activeElement as HTMLButtonElement);
-  if (e.code === 'ArrowDown' || e.code === 'ArrowUp') {
-    const d = e.code === 'ArrowDown' ? 1 : -1;
+  if (e.code === 'ArrowDown' || e.code === 'ArrowUp' || e.code === 'ArrowLeft' || e.code === 'ArrowRight') {
+    const d = e.code === 'ArrowDown' || e.code === 'ArrowRight' ? 1 : -1;
     buttons[(idx + d + buttons.length) % buttons.length].focus({ preventScroll: true });
     audio.play('select');
     return true;
@@ -393,6 +543,10 @@ function menuKey(e: KeyboardEvent): boolean {
   if (e.code === 'KeyX' || e.code === 'Escape') {
     if (state === 'paused') resume();
     else if (state === 'difficulty') enterSelect();
+    else if (state === 'codex') {
+      state = 'title';
+      showScreen('#title');
+    }
     return true;
   }
   return false;
@@ -407,13 +561,6 @@ window.addEventListener('keydown', (e) => {
   }
   if (e.code === 'KeyM') {
     toggleMute();
-    return;
-  }
-  if (state === 'title') {
-    if (e.code === 'KeyZ' || e.code === 'Enter' || e.code === 'Space') {
-      e.preventDefault();
-      enterSelect();
-    }
     return;
   }
   if (state === 'select') {
@@ -433,21 +580,20 @@ window.addEventListener('keydown', (e) => {
     input.takePause();
     return;
   }
-  if (state === 'difficulty' || state === 'paused' || state === 'over' || state === 'clear' || state === 'interlude') {
-    // Escape in play is handled by Input; here it closes menus.
+  if (state !== 'play') {
     if (menuKey(e)) {
       e.preventDefault();
       input.takePause(); // swallow the Escape the Input layer also saw
     }
     return;
   }
-  if (state === 'play' && game && /^Digit[1-5]$/.test(e.code)) game.jumpTo(Number(e.code.slice(5)) - 1);
+  if (game && /^Digit[1-5]$/.test(e.code)) game.jumpTo(Number(e.code.slice(5)) - 1);
 });
 
 // ───────────────────────────── events ─────────────────────────────
 
 const DIRECT_SFX: Partial<Record<string, Sfx>> = {
-  shot: 'shot', graze: 'graze', phaseEnd: 'phaseEnd', bossHit: 'bossHit',
+  shot: 'shot', graze: 'graze', phaseEnd: 'phaseEnd', bossHit: 'bossHit', laser: 'laser',
   enemyHit: 'enemyHit', enemyDie: 'enemyDie', item: 'item', bossDefeat: 'bossDefeat',
 };
 
@@ -469,6 +615,12 @@ function handleEvents(g: Game): void {
       case 'stageCard':
         hud.showStageCard(g);
         break;
+      case 'bossEnter':
+        if (g.boss.def && !save.bossesMet.includes(g.boss.def.id)) {
+          save.bossesMet.push(g.boss.def.id);
+          persist();
+        }
+        break;
       case 'bossIntro':
         hud.showBossCard(g);
         break;
@@ -486,12 +638,21 @@ function handleEvents(g: Game): void {
         audio.play(ev);
         hud.showCapture(g);
         if (ev === 'capture') {
-          const def = g.boss.def?.phases[g.boss.phase];
-          if (def) {
-            const st = save.elegies[`${def.id}|${g.char.id}|${g.diff}`];
-            if (st) st.captures++;
-          }
+          const st = elegyStat(g);
+          if (st) st.captures++;
           persist();
+        }
+        break;
+      }
+      case 'recollection': {
+        audio.play('recollection');
+        const idx = g.lastRecollection;
+        if (idx >= 0) {
+          hud.showRecollection(RECOLLECTIONS[idx].text);
+          if (!save.recollections.includes(idx)) {
+            save.recollections.push(idx);
+            persist();
+          }
         }
         break;
       }
@@ -545,6 +706,7 @@ let simMs = 0;
 let qualityTimer = 0;
 let slowFrames = 0;
 let qualityFrames = 0;
+let slowTick = 0;
 
 function step(): void {
   if (!game) return;
@@ -552,6 +714,11 @@ function step(): void {
     if (input.takePause()) {
       pause();
       return;
+    }
+    // Slow motion (boss defeat): the world advances one tick in three.
+    if (game.slowmo > 0) {
+      game.slowmo--;
+      if (slowTick++ % 3 !== 0) return;
     }
     const t0 = performance.now();
     const inp = input.sample(layout.scale);
@@ -597,16 +764,17 @@ function frame(now: number): void {
   // Fall behind gracefully: slow down instead of skipping ahead (genre convention).
   if (acc > TICK) acc = 0;
 
-  const inGame = game !== null && state !== 'title' && state !== 'difficulty' && state !== 'interlude';
+  const inGame = game !== null && (state === 'play' || state === 'paused' || state === 'over' || state === 'clear');
   if (state !== 'paused') renderer.updateVisuals(dt, inGame ? game : null);
-  renderer.render(inGame ? game : null, layout.field, layout.vh);
+  // Interpolate between the previous and current tick (frozen while paused or slowed).
+  const alpha = state === 'play' && !(game && game.slowmo > 0) ? acc / TICK : 1;
+  renderer.render(inGame ? game : null, layout.field, layout.vh, alpha);
   if (inGame && game) {
     hud.update(game);
-    const p = game.player;
     const cs = game.cs;
     const ready = game.char.id === 'ilse' ? cs.pinCooldown === 0 : cs.meter >= 1 && !cs.vigil.active;
     btnSkill.classList.toggle('ready', ready);
-    btnBomb.disabled = p.bombs <= 0;
+    btnBomb.disabled = game.player.bombs <= 0;
   }
 
   fpsFrames++;
@@ -618,7 +786,7 @@ function frame(now: number): void {
     if (showDebug && game && inGame) {
       hud.setDebug(
         `fps ${fps.toFixed(0)}  sim ${simMs.toFixed(2)}ms\n` +
-          `bullets ${game.bullets.n}  enemies ${game.enemies.length}  items ${game.items.n}\n` +
+          `bullets ${game.bullets.n}  lasers ${game.lasers.n}  enemies ${game.enemies.length}  items ${game.items.n}\n` +
           `draws ${renderer.drawCalls}  res ${renderer.resolutionScale.toFixed(2)}x`,
       );
     } else hud.setDebug(null);

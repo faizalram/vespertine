@@ -14,6 +14,8 @@ export const IT = {
   star: 5,
   /** Wren's bell turns bullets into souls. */
   soul: 6,
+  /** A shard of someone forgotten (spec §6.5). */
+  recollection: 7,
 } as const;
 
 export type CharId = 'sayo' | 'ilse' | 'tessel' | 'wren';
@@ -29,6 +31,8 @@ export interface PhaseDef {
   time: number;
   /** Boss cannot be damaged; survive until the timer ends. */
   survival?: boolean;
+  /** Recollection index awarded for capturing this Elegy. */
+  recollection?: number;
   run: (g: Game) => Task;
 }
 
@@ -57,7 +61,7 @@ export interface EnemyDef {
 
 export type Behavior = (g: Game, e: Enemy) => Task;
 
-export type Speaker = CharId | 'hoshiko';
+export type Speaker = CharId | 'hoshiko' | 'ondine' | 'seraphine';
 
 export interface DialogueLine {
   who: Speaker;
@@ -78,6 +82,8 @@ export interface DialogueDef {
 
 export interface StageInfo {
   number: number;
+  /** Background scene id. */
+  scene: 'fields' | 'market' | 'library';
   title: string;
   poem: readonly string[];
   music: string;

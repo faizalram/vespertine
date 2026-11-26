@@ -119,9 +119,14 @@ function blendLayout(
   for (let i = 0; i < n; i++) {
     const b = p.focusBlend;
     const bob = Math.sin(g.frame * 0.08 + i * 1.7) * 1.5;
-    p.emitters[i][0] = p.x + w[i][0] + (f[i][0] - w[i][0]) * b;
-    p.emitters[i][1] = p.y + w[i][1] + (f[i][1] - w[i][1]) * b + bob;
+    follow(p.emitters[i], p.x + w[i][0] + (f[i][0] - w[i][0]) * b, p.y + w[i][1] + (f[i][1] - w[i][1]) * b + bob, 0.38 - i * 0.05);
   }
+}
+
+/** Options trail behind the player on a soft spring instead of being bolted on. */
+function follow(e: [number, number], tx: number, ty: number, k: number): void {
+  e[0] += (tx - e[0]) * k;
+  e[1] += (ty - e[1]) * k;
 }
 
 function optionCount(g: Game): number {
@@ -403,8 +408,7 @@ export const TESSEL: CharacterDef = {
       const w = DOLL_WIDE[i];
       const f = DOLL_GUARD[i];
       const bob = Math.sin(g.frame * 0.07 + i * 3) * 1.2;
-      p.emitters[i][0] = p.x + w[0] + (f[0] - w[0]) * b;
-      p.emitters[i][1] = p.y + w[1] + (f[1] - w[1]) * b + bob;
+      follow(p.emitters[i], p.x + w[0] + (f[0] - w[0]) * b, p.y + w[1] + (f[1] - w[1]) * b + bob, 0.32);
       const d = g.cs.dolls[i];
       d.x = p.emitters[i][0];
       d.y = p.emitters[i][1];

@@ -19,6 +19,8 @@ export const BT = {
   paper: 4,
   big: 5,
   small: 6,
+  coin: 7,
+  glyph: 8,
 } as const;
 
 export const BULLET_TYPES: readonly BulletType[] = [
@@ -29,4 +31,6 @@ export const BULLET_TYPES: readonly BulletType[] = [
   { sprite: S.paper, w: 11, h: 15, hitR: 3.2, orient: true },
   { sprite: S.big, w: 40, h: 40, hitR: 12, orient: false },
   { sprite: S.orb, w: 10, h: 10, hitR: 2.6, orient: false },
+  { sprite: S.coin, w: 14, h: 14, hitR: 4, orient: false },
+  { sprite: S.glyph, w: 10, h: 12, hitR: 3, orient: true },
 ];

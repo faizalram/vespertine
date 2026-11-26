@@ -6,12 +6,12 @@
 export type Sfx =
   | 'shot' | 'graze' | 'death' | 'bomb' | 'declare' | 'phaseEnd' | 'vigil' | 'bossHit' | 'select'
   | 'enemyHit' | 'enemyDie' | 'item' | 'extend' | 'bombGet' | 'capture' | 'captureFail' | 'bossDefeat' | 'talk'
-  | 'pin' | 'rewind' | 'bell' | 'dollCrack';
+  | 'pin' | 'rewind' | 'bell' | 'dollCrack' | 'recollection' | 'laser';
 
 const MIN_GAP: Record<Sfx, number> = {
   shot: 0.07, graze: 0.035, death: 0.3, bomb: 0.3, declare: 0.3, phaseEnd: 0.3, vigil: 0.2, bossHit: 0.09, select: 0.05,
   enemyHit: 0.08, enemyDie: 0.05, item: 0.04, extend: 0.5, bombGet: 0.5, capture: 0.5, captureFail: 0.5, bossDefeat: 1, talk: 0.05,
-  pin: 0.1, rewind: 0.3, bell: 0.3, dollCrack: 0.2,
+  pin: 0.1, rewind: 0.3, bell: 0.3, dollCrack: 0.2, recollection: 0.5, laser: 0.3,
 };
 
 interface Song {
@@ -27,6 +27,12 @@ const SONGS: Record<string, Song> = {
   title: { bpm: 60, chords: [[57, 60, 64], [53, 57, 60], [55, 59, 62], [52, 56, 59]], arp: false, drive: false, lead: false },
   stage1: { bpm: 92, chords: [[57, 60, 64], [53, 57, 60], [50, 53, 57], [52, 56, 59]], arp: true, drive: false, lead: true },
   boss1: { bpm: 126, chords: [[50, 53, 57], [46, 50, 53], [48, 52, 55], [45, 49, 52]], arp: true, drive: true, lead: true },
+  // Stage 2: a lilting market waltz-ish loop in E minor, drowned and slow.
+  stage2: { bpm: 84, chords: [[52, 55, 59], [48, 52, 55], [50, 54, 57], [47, 51, 54]], arp: true, drive: false, lead: true },
+  boss2: { bpm: 132, chords: [[52, 55, 59], [55, 59, 62], [48, 52, 55], [47, 51, 54]], arp: true, drive: true, lead: true },
+  // Stage 3: hushed library, C minor with a suspended ache.
+  stage3: { bpm: 78, chords: [[48, 51, 55], [44, 48, 51], [46, 50, 53], [43, 47, 50]], arp: true, drive: false, lead: true },
+  boss3: { bpm: 120, chords: [[48, 51, 55], [53, 56, 60], [50, 53, 56], [43, 47, 50]], arp: true, drive: true, lead: true },
 };
 
 export class AudioEngine {
@@ -143,6 +149,15 @@ export class AudioEngine {
         break;
       case 'select':
         this.tone(now, 'triangle', 880, 990, 0.08, 0.1);
+        break;
+      case 'recollection':
+        // A music-box phrase: someone remembered.
+        [1318.5, 1568, 1975.5, 1568].forEach((fq, k) => this.tone(now + k * 0.12, 'sine', fq, fq, 0.5, 0.07));
+        break;
+      case 'laser':
+        // A pen striking through a line.
+        this.noiseHit(now, 0.35, 1800, 0.12, 'bandpass');
+        this.tone(now, 'sawtooth', 220, 110, 0.35, 0.05);
         break;
       case 'pin':
         // A nib striking paper.

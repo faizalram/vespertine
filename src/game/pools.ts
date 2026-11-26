@@ -22,6 +22,8 @@ export interface BulletSpawn {
   /** If > 0, the bullet is removed at this age and reported as a burst event. */
   burstAt?: number;
   burstKind?: number;
+  /** Downward acceleration per frame (thrown coins, falling rain). */
+  grav?: number;
 }
 
 export interface BurstEvent {
@@ -47,6 +49,7 @@ export class BulletPool {
   readonly age: Int32Array;
   readonly burstAt: Int32Array;
   readonly burstKind: Uint8Array;
+  readonly grav: Float32Array;
   readonly bursts: BurstEvent[] = [];
 
   constructor(cap: number) {
@@ -64,6 +67,7 @@ export class BulletPool {
     this.age = new Int32Array(cap);
     this.burstAt = new Int32Array(cap);
     this.burstKind = new Uint8Array(cap);
+    this.grav = new Float32Array(cap);
   }
 
   spawn(b: BulletSpawn): number {
@@ -82,6 +86,7 @@ export class BulletPool {
     this.age[i] = 0;
     this.burstAt[i] = b.burstAt ?? 0;
     this.burstKind[i] = b.burstKind ?? 0;
+    this.grav[i] = b.grav ?? 0;
     return i;
   }
 
@@ -101,6 +106,7 @@ export class BulletPool {
     this.age[i] = this.age[j];
     this.burstAt[i] = this.burstAt[j];
     this.burstKind[i] = this.burstKind[j];
+    this.grav[i] = this.grav[j];
   }
 
   clear(): void {
@@ -131,6 +137,14 @@ export class BulletPool {
         if ((acc > 0 && s > t) || (acc < 0 && s < t)) s = t;
         this.speed[i] = s;
       }
+      const gv = this.grav[i];
+      if (gv !== 0) {
+        // Gravity: add to the vertical component, then convert back to speed/angle.
+        const vx = Math.cos(this.angle[i]) * this.speed[i];
+        const vy = Math.sin(this.angle[i]) * this.speed[i] + gv;
+        this.speed[i] = Math.min(4.5, Math.hypot(vx, vy));
+        this.angle[i] = Math.atan2(vy, vx);
+      }
       const a = (this.angle[i] += this.angVel[i]);
       let v = this.speed[i];
       if (slowR2 > 0) {
@@ -140,7 +154,9 @@ export class BulletPool {
       }
       const x = (this.x[i] += Math.cos(a) * v);
       const y = (this.y[i] += Math.sin(a) * v);
-      if (x < -margin || x > FIELD_W + margin || y < -margin || y > FIELD_H + margin) {
+      // Thrown bullets may arc above the top edge before falling back in.
+      const top = gv > 0 ? -160 : -margin;
+      if (x < -margin || x > FIELD_W + margin || y < top || y > FIELD_H + margin) {
         this.remove(i);
         i--;
       }
@@ -326,6 +342,11 @@ export class ItemPool {
   /** 1 = flying toward the player. */
   readonly homing: Uint8Array;
   readonly age: Int32Array;
+  /** Payload (recollection index). */
+  readonly data: Int16Array;
+  /** Previous-tick position, for render interpolation. */
+  readonly px: Float32Array;
+  readonly py: Float32Array;
 
   constructor(cap: number) {
     this.cap = cap;
@@ -336,13 +357,17 @@ export class ItemPool {
     this.type = new Uint8Array(cap);
     this.homing = new Uint8Array(cap);
     this.age = new Int32Array(cap);
+    this.data = new Int16Array(cap);
+    this.px = new Float32Array(cap);
+    this.py = new Float32Array(cap);
   }
 
-  spawn(x: number, y: number, type: number, vx = 0, vy = -2.4, homing = 0): void {
+  spawn(x: number, y: number, type: number, vx = 0, vy = -2.4, homing = 0, data = 0): void {
     if (this.n >= this.cap) return;
     const i = this.n++;
-    this.x[i] = x;
-    this.y[i] = y;
+    this.x[i] = this.px[i] = x;
+    this.y[i] = this.py[i] = y;
+    this.data[i] = data;
     this.vx[i] = vx;
     this.vy[i] = vy;
     this.type[i] = type;
@@ -360,6 +385,110 @@ export class ItemPool {
     this.type[i] = this.type[j];
     this.homing[i] = this.homing[j];
     this.age[i] = this.age[j];
+    this.data[i] = this.data[j];
+    this.px[i] = this.px[j];
+    this.py[i] = this.py[j];
+  }
+
+  clear(): void {
+    this.n = 0;
+  }
+}
+
+/**
+ * Straight lasers. Each one warns first (a thin harmless line), then becomes
+ * dangerous for `active` frames, then fades. Spec §7.6: 30+ warning frames.
+ */
+export class LaserPool {
+  readonly cap: number;
+  n = 0;
+  readonly x: Float32Array;
+  readonly y: Float32Array;
+  readonly angle: Float32Array;
+  readonly length: Float32Array;
+  readonly width: Float32Array;
+  readonly warn: Int16Array;
+  readonly active: Int16Array;
+  readonly t: Int32Array;
+  readonly color: Uint8Array;
+  /** Style: 0 = light beam, 1 = redaction bar (black with a pale edge). */
+  readonly style: Uint8Array;
+  readonly grazeT: Int16Array;
+
+  constructor(cap: number) {
+    this.cap = cap;
+    this.x = new Float32Array(cap);
+    this.y = new Float32Array(cap);
+    this.angle = new Float32Array(cap);
+    this.length = new Float32Array(cap);
+    this.width = new Float32Array(cap);
+    this.warn = new Int16Array(cap);
+    this.active = new Int16Array(cap);
+    this.t = new Int32Array(cap);
+    this.color = new Uint8Array(cap);
+    this.style = new Uint8Array(cap);
+    this.grazeT = new Int16Array(cap);
+  }
+
+  static readonly FADE = 14;
+
+  spawn(x: number, y: number, angle: number, length: number, width: number, warn: number, active: number, color: number, style = 0): void {
+    if (this.n >= this.cap) return;
+    const i = this.n++;
+    this.x[i] = x;
+    this.y[i] = y;
+    this.angle[i] = angle;
+    this.length[i] = length;
+    this.width[i] = width;
+    this.warn[i] = Math.max(30, warn);
+    this.active[i] = active;
+    this.t[i] = 0;
+    this.color[i] = color;
+    this.style[i] = style;
+    this.grazeT[i] = 0;
+  }
+
+  remove(i: number): void {
+    const j = --this.n;
+    if (i === j) return;
+    this.x[i] = this.x[j];
+    this.y[i] = this.y[j];
+    this.angle[i] = this.angle[j];
+    this.length[i] = this.length[j];
+    this.width[i] = this.width[j];
+    this.warn[i] = this.warn[j];
+    this.active[i] = this.active[j];
+    this.t[i] = this.t[j];
+    this.color[i] = this.color[j];
+    this.style[i] = this.style[j];
+    this.grazeT[i] = this.grazeT[j];
+  }
+
+  /** 0 = warning, 1 = dangerous, 2 = fading. */
+  phase(i: number): number {
+    const t = this.t[i];
+    if (t < this.warn[i]) return 0;
+    if (t < this.warn[i] + this.active[i]) return 1;
+    return 2;
+  }
+
+  update(): void {
+    for (let i = 0; i < this.n; i++) {
+      if (++this.t[i] > this.warn[i] + this.active[i] + LaserPool.FADE) {
+        this.remove(i);
+        i--;
+      }
+    }
+  }
+
+  /** Distance from a point to laser i's centre line. */
+  distance(i: number, px: number, py: number): number {
+    const c = Math.cos(this.angle[i]);
+    const s = Math.sin(this.angle[i]);
+    const dx = px - this.x[i];
+    const dy = py - this.y[i];
+    const along = Math.max(0, Math.min(this.length[i], dx * c + dy * s));
+    return Math.hypot(dx - c * along, dy - s * along);
   }
 
   clear(): void {

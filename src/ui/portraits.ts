@@ -12,6 +12,8 @@ export const EXPRESSIONS: Record<Speaker, readonly string[]> = {
   tessel: ['neutral', 'curious', 'smile', 'blank', 'sad', 'surprised'],
   wren: ['neutral', 'soft', 'wry', 'sad', 'stern', 'tired'],
   hoshiko: ['neutral', 'happy', 'curious', 'proud', 'determined', 'hurt', 'sad'],
+  ondine: ['neutral', 'grin', 'sly', 'counting', 'offended', 'sincere', 'sad'],
+  seraphine: ['neutral', 'gentle', 'smile', 'pleading', 'stern', 'sad', 'shocked'],
 };
 
 export const PORTRAIT_W = 240;
@@ -23,6 +25,8 @@ export const SPEAKER_NAMES: Record<Speaker, string> = {
   tessel: 'Tessel',
   wren: 'Sister Wren',
   hoshiko: 'Hoshiko Aze',
+  ondine: 'Ondine Vesk',
+  seraphine: 'Seraphine Lull',
 };
 
 type Ctx = CanvasRenderingContext2D;
@@ -685,12 +689,262 @@ function drawWren(c: Ctx, expr: string) {
   }
 }
 
+// ─────────────────────────────── Ondine ───────────────────────────────
+
+const ONDINE_SKIN = '#e8c8b0';
+const ONDINE_HAIR = '#2a6a6a';
+
+function ondineBase(c: Ctx) {
+  // Hair drifting as if underwater.
+  c.fillStyle = ONDINE_HAIR;
+  c.beginPath();
+  c.moveTo(60, 150);
+  c.bezierCurveTo(20, 120, 36, 240, 10, 300);
+  c.lineTo(230, 300);
+  c.bezierCurveTo(204, 240, 220, 120, 180, 150);
+  c.quadraticCurveTo(170, 80, 120, 80);
+  c.quadraticCurveTo(70, 80, 60, 150);
+  c.fill();
+  // Teal merchant coat with gold buttons, coin necklace.
+  bust(c, '#1f5a58', ONDINE_SKIN);
+  c.fillStyle = '#e0b04a';
+  for (let i = 0; i < 3; i++) ell(c, 120, 258 + i * 18, 4, 4, '#e0b04a');
+  for (let i = 0; i < 9; i++) {
+    const a = Math.PI * (0.2 + (i / 8) * 0.6);
+    ell(c, 120 + Math.cos(a) * 34, 214 + Math.sin(a) * 22, 6, 6, '#f0c860');
+    ell(c, 120 + Math.cos(a) * 34, 214 + Math.sin(a) * 22, 3, 3, '#b8862a');
+  }
+  // Bangs.
+  c.fillStyle = ONDINE_HAIR;
+  c.beginPath();
+  c.moveTo(72, 130);
+  c.quadraticCurveTo(80, 92, 120, 92);
+  c.quadraticCurveTo(162, 92, 168, 130);
+  c.quadraticCurveTo(140, 110, 120, 116);
+  c.quadraticCurveTo(96, 108, 72, 130);
+  c.fill();
+  // A wide merchant's hat with a feather and a dangling price tag.
+  c.fillStyle = '#16302e';
+  c.beginPath();
+  c.ellipse(120, 92, 104, 22, -0.06, 0, Math.PI * 2);
+  c.fill();
+  c.beginPath();
+  c.moveTo(72, 92);
+  c.quadraticCurveTo(76, 30, 124, 30);
+  c.quadraticCurveTo(170, 32, 168, 90);
+  c.closePath();
+  c.fill();
+  c.fillStyle = '#e0b04a';
+  c.fillRect(74, 76, 94, 8);
+  curve(c, 150, 70, 196, 20, 214, 40, '#e8e0c8', 5);
+  line(c, [206, 98, 214, 128], '#c9a24a', 1.5);
+  c.fillStyle = '#efe4c8';
+  c.fillRect(204, 126, 20, 14);
+  c.fillStyle = '#7a3020';
+  c.font = 'bold 10px Georgia, serif';
+  c.fillText('¤', 210, 137);
+  // Bubbles drifting upward: she lives under the lake.
+  for (const [x, y, r] of [[40, 200, 5], [30, 170, 3], [206, 220, 4], [214, 190, 2.5]] as const) {
+    c.strokeStyle = 'rgba(200,255,250,0.6)';
+    c.lineWidth = 1.5;
+    c.beginPath();
+    c.arc(x, y, r, 0, Math.PI * 2);
+    c.stroke();
+  }
+}
+
+function drawOndine(c: Ctx, expr: string) {
+  paperShadow(c, () => ondineBase(c));
+  const ink = '#1a2a2a';
+  const iris = ['#c9a24a'];
+  const mouth = '#a04848';
+  const goldTooth = () => {
+    c.fillStyle = '#ffffff';
+    c.beginPath();
+    c.moveTo(104, 176);
+    c.quadraticCurveTo(120, 196, 138, 174);
+    c.closePath();
+    c.fill();
+    c.fillStyle = '#f0c040';
+    c.fillRect(124, 177, 6, 6);
+    curve(c, 104, 176, 120, 196, 138, 174, mouth, 2.5);
+  };
+  switch (expr) {
+    case 'grin':
+      eyes(c, [100, 140], 148, 'smile', ONDINE_SKIN, iris, ink);
+      brows(c, 128, -1, ink, 3);
+      goldTooth();
+      break;
+    case 'sly':
+      eyes(c, [100, 140], 148, 'half', ONDINE_SKIN, iris, ink);
+      line(c, [88, 130, 110, 128], ink, 2.5);
+      line(c, [130, 124, 152, 122], ink, 2.5);
+      curve(c, 106, 180, 122, 184, 136, 172, mouth, 2.5);
+      break;
+    case 'counting':
+      eyes(c, [100, 140], 148, 'down', ONDINE_SKIN, iris, ink);
+      brows(c, 130, 0, ink);
+      curve(c, 112, 180, 120, 184, 128, 180, mouth, 2.5);
+      // A monocle, for appraisals.
+      c.strokeStyle = '#e0b04a';
+      c.lineWidth = 2;
+      c.beginPath();
+      c.arc(140, 148, 15, 0, Math.PI * 2);
+      c.stroke();
+      line(c, [154, 154, 166, 200], '#e0b04a', 1.2);
+      break;
+    case 'offended':
+      eyes(c, [100, 140], 148, 'wide', ONDINE_SKIN, iris, ink);
+      brows(c, 128, -5, ink);
+      ell(c, 120, 182, 7, 5, mouth);
+      break;
+    case 'sincere':
+      eyes(c, [100, 140], 150, 'open', ONDINE_SKIN, iris, ink);
+      brows(c, 130, 3, ink);
+      line(c, [112, 181, 128, 181], mouth, 2.5);
+      break;
+    case 'sad':
+      eyes(c, [100, 140], 151, 'down', ONDINE_SKIN, iris, ink);
+      brows(c, 131, 5, ink);
+      curve(c, 110, 184, 120, 179, 130, 184, mouth, 2.5);
+      ell(c, 92, 170, 3, 5, 'rgba(160,220,255,0.75)');
+      break;
+    default:
+      eyes(c, [100, 140], 148, 'open', ONDINE_SKIN, iris, ink);
+      brows(c, 130, 0, ink);
+      curve(c, 108, 179, 120, 186, 132, 179, mouth, 2.5);
+  }
+}
+
+// ─────────────────────────────── Seraphine ───────────────────────────────
+
+const SERA_SKIN = '#f3e2d4';
+const SERA_HAIR = '#e8e4dc';
+
+function seraphineBase(c: Ctx) {
+  // Long pale hair, nearly white, like a page.
+  c.fillStyle = SERA_HAIR;
+  c.beginPath();
+  c.moveTo(66, 130);
+  c.quadraticCurveTo(58, 66, 120, 62);
+  c.quadraticCurveTo(182, 66, 174, 130);
+  c.lineTo(198, 320);
+  c.lineTo(42, 320);
+  c.closePath();
+  c.fill();
+  // Grey-blue robe with ink stains and a quill tucked in the collar.
+  bust(c, '#4a5a72', SERA_SKIN);
+  c.fillStyle = '#efe8dc';
+  c.beginPath();
+  c.moveTo(96, 226);
+  c.lineTo(120, 262);
+  c.lineTo(144, 226);
+  c.closePath();
+  c.fill();
+  ell(c, 160, 284, 8, 5, '#1c2030');
+  ell(c, 70, 296, 5, 3, '#1c2030');
+  c.fillStyle = '#f6f2ea';
+  c.beginPath();
+  c.moveTo(150, 240);
+  c.quadraticCurveTo(190, 190, 214, 150);
+  c.quadraticCurveTo(196, 196, 158, 248);
+  c.closePath();
+  c.fill();
+  // An open book floating at her shoulder, its pages blank.
+  c.save();
+  c.translate(40, 214);
+  c.rotate(-0.25);
+  c.fillStyle = '#efe8dc';
+  c.beginPath();
+  c.moveTo(0, 0);
+  c.quadraticCurveTo(20, -8, 38, 0);
+  c.lineTo(38, 30);
+  c.quadraticCurveTo(20, 22, 0, 30);
+  c.closePath();
+  c.moveTo(0, 0);
+  c.quadraticCurveTo(-20, -8, -38, 0);
+  c.lineTo(-38, 30);
+  c.quadraticCurveTo(-20, 22, 0, 30);
+  c.closePath();
+  c.fill();
+  line(c, [0, 0, 0, 30], '#a09888', 1.2);
+  c.restore();
+  // Bangs, parted.
+  c.fillStyle = SERA_HAIR;
+  c.beginPath();
+  c.moveTo(70, 140);
+  c.quadraticCurveTo(70, 88, 118, 86);
+  c.lineTo(108, 128);
+  c.lineTo(96, 112);
+  c.closePath();
+  c.moveTo(170, 140);
+  c.quadraticCurveTo(170, 88, 122, 86);
+  c.lineTo(134, 126);
+  c.lineTo(146, 110);
+  c.closePath();
+  c.fill();
+  // Round spectacles.
+  c.strokeStyle = '#8a7a5a';
+  c.lineWidth = 2;
+  for (const x of [100, 140]) {
+    c.beginPath();
+    c.arc(x, 149, 15, 0, Math.PI * 2);
+    c.stroke();
+  }
+  line(c, [115, 147, 125, 147], '#8a7a5a', 2);
+}
+
+function drawSeraphine(c: Ctx, expr: string) {
+  paperShadow(c, () => seraphineBase(c));
+  const ink = '#4a4038';
+  const iris = ['#6a7a9a'];
+  const mouth = '#a06060';
+  switch (expr) {
+    case 'gentle':
+      eyes(c, [100, 140], 150, 'closed', SERA_SKIN, iris, ink);
+      brows(c, 128, 2, ink, 2);
+      curve(c, 112, 180, 120, 184, 128, 180, mouth, 2.5);
+      break;
+    case 'smile':
+      eyes(c, [100, 140], 150, 'smile', SERA_SKIN, iris, ink);
+      brows(c, 128, 1, ink, 2);
+      curve(c, 108, 179, 120, 188, 132, 179, mouth, 2.5);
+      break;
+    case 'pleading':
+      eyes(c, [100, 140], 150, 'wide', SERA_SKIN, iris, ink);
+      brows(c, 128, 6, ink);
+      curve(c, 112, 183, 120, 179, 128, 183, mouth, 2.5);
+      break;
+    case 'stern':
+      eyes(c, [100, 140], 150, 'half', SERA_SKIN, iris, ink);
+      brows(c, 130, -4, ink);
+      line(c, [112, 181, 128, 181], mouth, 2.5);
+      break;
+    case 'sad':
+      eyes(c, [100, 140], 152, 'down', SERA_SKIN, iris, ink);
+      brows(c, 130, 5, ink);
+      curve(c, 110, 184, 120, 179, 130, 184, mouth, 2.5);
+      break;
+    case 'shocked':
+      eyes(c, [100, 140], 149, 'wide', SERA_SKIN, iris, ink);
+      brows(c, 122, 2, ink, 4);
+      ell(c, 120, 183, 4, 5, mouth);
+      break;
+    default:
+      eyes(c, [100, 140], 150, 'open', SERA_SKIN, iris, ink);
+      brows(c, 129, 1, ink);
+      curve(c, 112, 180, 120, 183, 128, 180, mouth, 2.5);
+  }
+}
+
 const DRAW: Record<Speaker, (c: Ctx, expr: string) => void> = {
   sayo: drawSayo,
   ilse: drawIlse,
   tessel: drawTessel,
   wren: drawWren,
   hoshiko: drawHoshiko,
+  ondine: drawOndine,
+  seraphine: drawSeraphine,
 };
 
 /** Renders a portrait into a canvas at the device pixel ratio. Cached per speaker/expression. */

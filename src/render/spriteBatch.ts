@@ -3,7 +3,7 @@ import type { Region } from './atlas';
 
 const VERT = /* glsl */ `
 attribute vec4 iA;   // x, y, rotation, scale
-attribute vec4 iB;   // width, height, mode, unused
+attribute vec4 iB;   // width, height, mode, y-stretch
 attribute vec4 iUV;  // u0, v0, u1, v1
 attribute vec4 iC;   // rgba tint
 varying vec2 vUv;
@@ -11,7 +11,7 @@ varying vec4 vC;
 varying float vMode;
 void main() {
   vec2 local = position.xy;               // -0.5..0.5
-  vec2 p = local * iB.xy * iA.w;
+  vec2 p = local * iB.xy * vec2(iA.w, iA.w * iB.w);
   float c = cos(iA.z), s = sin(iA.z);
   p = vec2(p.x * c - p.y * s, p.x * s + p.y * c) + iA.xy;
   vUv = vec2(mix(iUV.x, iUV.z, local.x + 0.5), mix(iUV.y, iUV.w, local.y + 0.5));
@@ -88,7 +88,8 @@ export class SpriteBatch {
     this.n = 0;
   }
 
-  push(sprite: number, x: number, y: number, rot = 0, scale = 1, r = 1, g = 1, b = 1, alpha = 1, w = 0, h = 0): void {
+  /** `scale` is the uniform size; `sy` additionally stretches along the sprite's own y axis (squash & stretch). */
+  push(sprite: number, x: number, y: number, rot = 0, scale = 1, r = 1, g = 1, b = 1, alpha = 1, w = 0, h = 0, sy = 1): void {
     if (this.n >= this.cap) return;
     const reg = this.regions[sprite];
     const o = this.n * 4;
@@ -99,6 +100,7 @@ export class SpriteBatch {
     this.b[o] = w || reg.w;
     this.b[o + 1] = h || reg.h;
     this.b[o + 2] = reg.mode;
+    this.b[o + 3] = sy;
     this.uv[o] = reg.u0;
     this.uv[o + 1] = reg.v0;
     this.uv[o + 2] = reg.u1;

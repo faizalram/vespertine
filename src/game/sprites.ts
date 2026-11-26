@@ -47,6 +47,22 @@ export const S = {
   boat: 41,
   itemSoul: 42,
   reticle: 43,
+  // M3: Act One
+  remnant: 44,
+  itemRecollection: 45,
+  coin: 46,
+  glyph: 47,
+  beam: 48,
+  koi: 49,
+  paperBoat: 50,
+  drownedLantern: 51,
+  inkmoth: 52,
+  book: 53,
+  quill: 54,
+  ondine: 55,
+  seraphine: 56,
+  mothQueen: 57,
+  ghost: 58,
 } as const;
 
 export type SpriteId = (typeof S)[keyof typeof S];

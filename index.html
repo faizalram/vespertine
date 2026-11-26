@@ -22,7 +22,7 @@
       <section id="panel" class="hud">
         <h1 class="logo">Vespertine</h1>
         <p class="logo-sub">Elegy of the Unremembered</p>
-        <p class="diff-label" data-k="diff"></p>
+        <p class="diff-label"><span data-k="diff"></span> · <span data-k="stageLabel"></span></p>
         <dl class="stats">
           <dt>Hi-Score</dt><dd data-k="hi">0</dd>
           <dt>Score</dt><dd data-k="score">0</dd>
@@ -31,6 +31,7 @@
           <dt>Ember</dt><dd data-k="power">1.00</dd>
           <dt>Point</dt><dd data-k="pointValue">10,000</dd>
           <dt>Graze</dt><dd data-k="graze">0</dd>
+          <dt>Recollections</dt><dd data-k="recollections">0</dd>
         </dl>
         <div class="meter"><span data-k="meterLabel">Vigil</span><div class="bar"><i data-k="vigil"></i></div></div>
         <p class="keys">
@@ -74,6 +75,7 @@
         <div id="boss-card"><p class="bc-title"></p><h2 class="bc-name"></h2></div>
         <div id="cutin"><canvas></canvas></div>
         <div id="capture"></div>
+        <div id="recollection"><span class="r-label">Recollection</span><p class="r-text"></p></div>
         <div id="dialogue">
           <canvas class="portrait left"></canvas>
           <canvas class="portrait right"></canvas>
@@ -85,12 +87,14 @@
       <!-- Screens -->
       <section id="title" class="screen show">
         <div class="title-inner">
-          <p class="eyebrow">M2 · Four who remember</p>
+          <p class="eyebrow">M3 · Act One</p>
           <h1>Vespertine</h1>
           <p class="sub">Elegy of the Unremembered</p>
           <blockquote>In the hundredth year of the Long Dusk,<br />the sun still has not set.</blockquote>
-          <p class="start">Tap or press Z to begin</p>
-          <p class="who">Story Mode · Stage 1</p>
+          <div class="title-menu">
+            <button data-act="story" class="primary">Story Mode</button>
+            <button data-act="codex">Codex</button>
+          </div>
         </div>
       </section>
 
@@ -121,6 +125,19 @@
           <button data-diff="2"><b>Midnight</b><span>Denser, faster, less forgiving.</span></button>
           <button data-diff="3" disabled><b>Requiem</b><span>Unlocked after a good ending.</span></button>
           <button data-act="toSelect" class="quiet">Back</button>
+        </div>
+      </section>
+
+      <section id="codex" class="screen">
+        <div class="codex-inner">
+          <h2>Codex</h2>
+          <div class="tabs">
+            <button data-tab="recollections" class="tab on">Recollections</button>
+            <button data-tab="people" class="tab">People</button>
+            <button data-tab="elegies" class="tab">Elegies</button>
+          </div>
+          <div class="codex-body"></div>
+          <button data-act="closeCodex" class="quiet">Back</button>
         </div>
       </section>
 
@@ -159,8 +176,9 @@
           <div class="candle"><i></i></div>
           <p class="il-title"></p>
           <div class="il-lines"></div>
-          <p class="il-end">End of the Stage 1 vertical slice. The road continues upward in a later build.</p>
-          <button data-act="title" class="quiet">Return to title</button>
+          <p class="il-end"></p>
+          <button data-act="onward" class="il-onward">Onward</button>
+          <button data-act="title" class="quiet il-title-btn">Return to title</button>
         </div>
       </section>
     </div>

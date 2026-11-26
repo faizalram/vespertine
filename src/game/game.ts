@@ -5,7 +5,7 @@ import { FIELD_H, FIELD_W, SPAWN_GRACE, TAU } from './constants';
 import { CHARACTERS, CharState, type CharacterDef } from './characters';
 import { IT, type Behavior, type BossDef, type CharId, type DialogueDef, type DifficultyId, type EnemyDef, type StageInfo } from './defs';
 import { C } from './palette';
-import { BF_GRAZED, BulletPool, FxPool, ItemPool, ShotPool, SK, type BulletSpawn, type BurstEvent } from './pools';
+import { BF_GRAZED, BulletPool, FxPool, ItemPool, LaserPool, ShotPool, SK, type BulletSpawn, type BurstEvent } from './pools';
 import { S } from './sprites';
 
 /** One tick of player intent, already merged from keyboard, gamepad and touch. */
@@ -34,7 +34,11 @@ export type GameEvent =
   | 'graze' | 'shot' | 'death' | 'bomb' | 'declare' | 'phaseEnd' | 'gameover' | 'vigil'
   | 'bossHit' | 'enemyHit' | 'enemyDie' | 'item' | 'extend' | 'bombGet' | 'fullPower'
   | 'capture' | 'captureFail' | 'bossEnter' | 'bossDefeat' | 'bossIntro' | 'music'
-  | 'stageCard' | 'stageClear' | 'dialogueLine' | 'dialogueEnd' | 'skill' | 'dollCrack';
+  | 'stageCard' | 'stageClear' | 'dialogueLine' | 'dialogueEnd' | 'skill' | 'dollCrack'
+  | 'recollection' | 'laser' | 'hitstop';
+
+/** Ticks of player position history kept (5 s). */
+export const TRAIL_FRAMES = 300;
 
 /** Point-of-collection line: above it, every item flies to the player (spec §7.3). */
 export const POC_Y = FIELD_H * 0.28;
@@ -45,6 +49,11 @@ const MAX_BOMBS = 8;
 export class Player {
   x = FIELD_W / 2;
   y = FIELD_H - 48;
+  /** Previous-tick position, for render interpolation. */
+  px = FIELD_W / 2;
+  py = FIELD_H - 48;
+  /** Smoothed horizontal velocity (drives banking and camera lean). */
+  vxSmooth = 0;
   lives = 3;
   bombs = 3;
   power = 1;
@@ -57,7 +66,8 @@ export class Player {
   shotTimer = 0;
   moving = false;
   emitterCount = 1;
-  readonly emitters: Array<[number, number]> = [[0, 0], [0, 0], [0, 0], [0, 0]];
+  readonly emitters: Array<[number, number]> = [0, 1, 2, 3].map(() => [FIELD_W / 2, FIELD_H - 48] as [number, number]);
+  readonly emittersPrev: Array<[number, number]> = [0, 1, 2, 3].map(() => [FIELD_W / 2, FIELD_H - 48] as [number, number]);
 }
 
 let nextEnemyId = 1;
@@ -66,6 +76,10 @@ export class Enemy {
   readonly id = nextEnemyId++;
   x = 0;
   y = 0;
+  px = 0;
+  py = 0;
+  /** Recollection index dropped on death (-1 = none). */
+  recollection = -1;
   vx = 0;
   vy = 0;
   hp = 1;
@@ -88,6 +102,10 @@ export class Enemy {
 export class Boss {
   x = FIELD_W / 2;
   y = -60;
+  px = FIELD_W / 2;
+  py = -60;
+  /** Frames since the current Elegy was declared (drives the charge-up animation). */
+  declareT = 999;
   hp = 0;
   maxHp = 1;
   phase = -1;
@@ -142,6 +160,9 @@ export interface StageResults {
   elegies: number;
   graze: number;
   score: number;
+  recollections: number;
+  /** Last stage of the build: the story pauses here. */
+  final: boolean;
 }
 
 export interface GameOptions {
@@ -150,6 +171,8 @@ export interface GameOptions {
   /** Debug: where the stage script should begin. */
   startAt?: 'start' | 'midboss' | 'boss';
   char?: CharId;
+  /** Debug: first stage of the story script. */
+  startStage?: number;
 }
 
 /** Dialogue typewriter speed in characters per frame. */
@@ -164,7 +187,14 @@ export class Game {
   readonly shots = new ShotPool(512);
   readonly fx = new FxPool(3072);
   readonly items = new ItemPool(1024);
+  readonly lasers = new LaserPool(64);
   readonly enemies: Enemy[] = [];
+  readonly startStage: number;
+  /** Player positions for the last TRAIL_FRAMES ticks (Ondine's "memory" Elegy, afterimages). */
+  readonly trail = new Float32Array(TRAIL_FRAMES * 2);
+  private trailIdx = 0;
+  /** A ghost of the player's past, drawn while an Elegy replays it. */
+  readonly memoryGhost = { active: false, x: 0, y: 0 };
   readonly stageSched = new Scheduler();
   readonly patternSched = new Scheduler();
   readonly player = new Player();
@@ -183,6 +213,13 @@ export class Game {
   bombFrags = 0;
   captures = 0;
   elegiesSeen = 0;
+  stageCaptures = 0;
+  stageElegies = 0;
+  /** Recollections picked up this run (indices), and the latest one. */
+  readonly recollected: number[] = [];
+  lastRecollection = -1;
+  /** Frames of slow motion requested (boss defeat); the main loop honours it. */
+  slowmo = 0;
   flash = 0;
   shake = 0;
   music = '';
@@ -198,6 +235,7 @@ export class Game {
     this.rng = new Rng(opts.seed ?? 20261126);
     this.diff = opts.difficulty ?? 1;
     this.startAt = opts.startAt ?? 'start';
+    this.startStage = opts.startStage ?? 1;
     this.char = CHARACTERS[opts.char ?? 'sayo'];
     this.player.lives = this.startingLives;
     this.player.bombs = this.char.bombs;
@@ -214,7 +252,14 @@ export class Game {
   }
 
   get pointValue(): number {
-    return 10_000 + this.graze * 10;
+    return 10_000 + this.graze * 10 + this.recollected.length * 500;
+  }
+
+  /** Player position `framesAgo` ticks back (clamped to the stored window). */
+  trailAt(framesAgo: number): [number, number] {
+    const k = Math.min(TRAIL_FRAMES - 1, Math.max(0, framesAgo));
+    const idx = ((this.trailIdx - 1 - k) % TRAIL_FRAMES + TRAIL_FRAMES) % TRAIL_FRAMES;
+    return [this.trail[idx * 2], this.trail[idx * 2 + 1]];
   }
 
   onBurst(kind: number, fn: (g: Game, e: BurstEvent) => void): void {
@@ -230,8 +275,12 @@ export class Game {
       return;
     }
     this.frame++;
+    this.savePrevious();
     this.updateDialogue(inp);
     this.updatePlayer(inp);
+    this.trail[this.trailIdx * 2] = this.player.x;
+    this.trail[this.trailIdx * 2 + 1] = this.player.y;
+    this.trailIdx = (this.trailIdx + 1) % TRAIL_FRAMES;
     this.stageSched.tick();
     this.patternSched.tick();
     this.updateEnemies();
@@ -240,6 +289,7 @@ export class Game {
     if (z) this.bullets.update(z[0], z[1], z[2], z[3]);
     else this.bullets.update();
     for (const e of this.bullets.bursts) this.burstHandlers.get(e.kind)?.(this, e);
+    this.lasers.update();
     this.updateShots();
     this.updateItems();
     this.updateBomb();
@@ -251,6 +301,29 @@ export class Game {
     while (this.extendIndex < EXTEND_SCORES.length && this.score >= EXTEND_SCORES[this.extendIndex]) {
       this.extendIndex++;
       this.extend();
+    }
+  }
+
+  /** Snapshot positions so the renderer can interpolate between ticks. */
+  private savePrevious(): void {
+    const p = this.player;
+    p.px = p.x;
+    p.py = p.y;
+    for (let i = 0; i < 4; i++) {
+      p.emittersPrev[i][0] = p.emitters[i][0];
+      p.emittersPrev[i][1] = p.emitters[i][1];
+    }
+    const b = this.boss;
+    b.px = b.x;
+    b.py = b.y;
+    for (const e of this.enemies) {
+      e.px = e.x;
+      e.py = e.y;
+    }
+    const it = this.items;
+    for (let i = 0; i < it.n; i++) {
+      it.px[i] = it.x[i];
+      it.py[i] = it.y[i];
     }
   }
 
@@ -306,24 +379,52 @@ export class Game {
 
   showStageCard(info: StageInfo): void {
     this.stageInfo = info;
+    this.stageCaptures = 0;
+    this.stageElegies = 0;
     this.setMusic(info.music);
     this.events.push('stageCard');
   }
 
-  *stageClear(stage: number): Task {
+  /**
+   * Ends a stage: tallies results and pauses the simulation (results screen and
+   * Vigil interlude). The script resumes once the UI calls nextStage().
+   */
+  *stageClear(stage: number, final = false): Task {
     yield* wait(60);
     const clearBonus = stage * 1_000_000 + Math.round(this.player.power * 100) * 1000 + this.graze * 500;
     this.score += clearBonus;
     this.results = {
       stage,
       clearBonus,
-      captures: this.captures,
-      elegies: this.elegiesSeen,
+      captures: this.stageCaptures,
+      elegies: this.stageElegies,
       graze: this.graze,
       score: this.score,
+      recollections: this.recollected.length,
+      final,
     };
     this.cleared = true;
     this.events.push('stageClear');
+    yield; // the tick loop is frozen while cleared; this yield resumes after nextStage()
+  }
+
+  /** Called by the UI after the interlude: tidy the field and let the next stage begin. */
+  nextStage(): void {
+    if (!this.cleared || this.results?.final) return;
+    this.cleared = false;
+    this.bullets.clear();
+    this.lasers.clear();
+    this.items.clear();
+    this.shots.clear();
+    this.fx.clear();
+    for (const e of this.enemies) e.alive = false;
+    const p = this.player;
+    p.x = p.px = FIELD_W / 2;
+    p.y = p.py = FIELD_H - 48;
+    p.invuln = 120;
+    this.cs.pins.length = 0;
+    this.cs.vigil.active = false;
+    this.memoryGhost.active = false;
   }
 
   continueGame(): boolean {
@@ -388,6 +489,7 @@ export class Game {
     dx += tx;
     dy += ty;
     p.moving = Math.abs(dx) + Math.abs(dy) > 0.05;
+    p.vxSmooth += (dx - p.vxSmooth) * 0.2;
     p.x = Math.min(FIELD_W - 8, Math.max(8, p.x + dx));
     p.y = Math.min(FIELD_H - 16, Math.max(16, p.y + dy));
     p.stillFrames = p.focus && !p.moving ? p.stillFrames + 1 : 0;
@@ -413,6 +515,7 @@ export class Game {
     Object.assign(this.bomb, { active: true, t: 0, r: 0, x: p.x, y: p.y });
     this.boss.clean = false;
     this.autoCollect = 90;
+    this.lasers.clear();
     this.events.push('bomb');
     this.char.bombStart(this);
   }
@@ -481,6 +584,23 @@ export class Game {
         this.score += 200;
         const a = this.rng.range(0, TAU);
         this.fx.spawn(px, py, Math.cos(a) * 2.5, Math.sin(a) * 2.5, 14, S.spark, C.white, 0.45, 0.1, 0.9);
+        ch.onGraze?.(this);
+        this.events.push('graze');
+      }
+    }
+    const lz = this.lasers;
+    for (let i = 0; i < lz.n; i++) {
+      if (lz.phase(i) !== 1) continue;
+      const d = lz.distance(i, px, py);
+      const half = lz.width[i] * 0.42; // beam hitbox is narrower than its glow
+      if (d < half + ch.hitR && p.invuln === 0) {
+        p.deathTimer = ch.deathbombFrames;
+        return;
+      }
+      if (d < half + ch.grazeR && --lz.grazeT[i] <= 0) {
+        lz.grazeT[i] = 6;
+        this.graze++;
+        this.score += 200;
         ch.onGraze?.(this);
         this.events.push('graze');
       }
@@ -606,6 +726,9 @@ export class Game {
     }
     this.fx.spawn(e.x, e.y, 0, 0, 16, S.ring, C.amber, 0.05, Math.max(0.25, e.r / 40), 0.7);
     for (const t of e.drops) this.items.spawn(e.x + this.rng.range(-10, 10), e.y + this.rng.range(-6, 6), t, this.rng.range(-0.8, 0.8));
+    if (e.recollection >= 0) this.items.spawn(e.x, e.y, IT.recollection, 0, -2.6, 0, e.recollection);
+    // Death pop: the enemy's own sprite swells and fades.
+    this.fx.spawn(e.x, e.y, e.vx * 0.3, e.vy * 0.3, 14, e.sprite, C.white, 1, 1.6, 0.9);
   }
 
   /** Nearest target for homing shots: enemies or the boss. */
@@ -729,7 +852,7 @@ export class Game {
         it.x[i] += (dx / d) * sp;
         it.y[i] += (dy / d) * sp;
         if (d < 10) {
-          this.collect(it.type[i], it.y[i], it.homing[i] === 2);
+          this.collect(it.type[i], it.y[i], it.homing[i] === 2, it.data[i]);
           it.remove(i);
           i--;
         }
@@ -750,7 +873,13 @@ export class Game {
     }
   }
 
-  private collect(type: number, y: number, full: boolean): void {
+  private collectRecollection(idx: number): void {
+    if (!this.recollected.includes(idx)) this.recollected.push(idx);
+    this.lastRecollection = idx;
+    this.events.push('recollection');
+  }
+
+  private collect(type: number, y: number, full: boolean, data = 0): void {
     const p = this.player;
     this.events.push('item');
     switch (type) {
@@ -789,6 +918,10 @@ export class Game {
         break;
       case IT.soul:
         this.score += 2000;
+        break;
+      case IT.recollection:
+        this.score += 50_000;
+        this.collectRecollection(data);
         break;
     }
   }
@@ -832,6 +965,7 @@ export class Game {
       yield* this.moveBoss(b.x, -90, 50);
     } else {
       this.events.push('bossDefeat');
+      this.slowmo = 50;
       this.shake = 14;
       this.flash = 0.5;
       for (let k = 0; k < 40; k++) {
@@ -873,8 +1007,10 @@ export class Game {
     b.phaseDone = false;
     b.timedOut = false;
     b.clean = true;
+    b.declareT = 0;
     if (def.elegy) {
       this.elegiesSeen++;
+      this.stageElegies++;
       this.events.push('declare');
     }
     this.patternSched.add(def.run(this));
@@ -882,6 +1018,7 @@ export class Game {
 
   private updateBoss(): void {
     const b = this.boss;
+    if (b.declareT < 999) b.declareT++;
     if (b.flash > 0) b.flash--;
     if (b.charted > 0) b.charted--;
     if (!b.present || !b.active) return;
@@ -916,8 +1053,10 @@ export class Game {
       this.lastCapture = { name: def.elegy, bonus, captured };
       if (captured) {
         this.captures++;
+        this.stageCaptures++;
         this.score += bonus;
         this.items.spawn(b.x, b.y, IT.bomb, 0, -3);
+        if (def.recollection !== undefined) this.items.spawn(b.x, b.y + 10, IT.recollection, 0, -3.2, 0, def.recollection);
         this.events.push('capture');
       } else this.events.push('captureFail');
     }
@@ -980,6 +1119,7 @@ export class Game {
     const bl = this.bullets;
     for (let i = 0; i < bl.n; i++) this.cancelFx(i);
     bl.clear();
+    this.lasers.clear();
   }
 
   /** Phase end: every bullet becomes a small star that flies to the player. */
@@ -990,5 +1130,7 @@ export class Game {
       if (i % 2 === 0) this.items.spawn(bl.x[i], bl.y[i], IT.star, 0, 0, 2);
     }
     bl.clear();
+    this.lasers.clear();
+    this.memoryGhost.active = false;
   }
 }

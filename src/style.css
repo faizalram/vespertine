@@ -156,6 +156,7 @@ body.menu-open #field-ui {
   width: 100%;
   background: linear-gradient(90deg, #b8642a, var(--amber), var(--amber-soft));
   transform-origin: left;
+  transition: transform 0.15s linear;
 }
 
 .meter .bar i.full {
@@ -289,6 +290,7 @@ body.menu-open #field-ui {
   height: 100%;
   background: linear-gradient(90deg, #ff6f8f, #ffd3dc);
   transform-origin: left;
+  transition: transform 0.25s ease-out;
 }
 
 .elegy {
@@ -323,7 +325,10 @@ body.menu-open #field-ui {
 .screen {
   position: absolute;
   inset: 0;
-  display: none;
+  display: flex;
+  visibility: hidden;
+  opacity: 0;
+  transition: opacity 0.35s ease, visibility 0.35s;
   align-items: center;
   justify-content: center;
   background: radial-gradient(ellipse at 50% 40%, rgba(12, 9, 18, 0.55), rgba(12, 9, 18, 0.92));
@@ -331,7 +336,17 @@ body.menu-open #field-ui {
 }
 
 .screen.show {
-  display: flex;
+  visibility: visible;
+  opacity: 1;
+}
+
+.screen > * {
+  transform: translateY(10px);
+  transition: transform 0.45s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.screen.show > * {
+  transform: none;
 }
 
 #title {
@@ -465,8 +480,16 @@ body.menu-open #field-ui {
   padding: 0 12px;
 }
 
+#banner {
+  transform: translateY(12px);
+  letter-spacing: 0.02em;
+  transition: opacity 0.4s, transform 0.6s cubic-bezier(0.2, 0.8, 0.2, 1), letter-spacing 1.2s ease-out;
+}
+
 #banner.show {
   opacity: 1;
+  transform: none;
+  letter-spacing: 0.06em;
 }
 
 #stage-card {
@@ -620,7 +643,34 @@ body.menu-open #field-ui {
   bottom: 0;
   width: 58%;
   height: auto;
-  transition: filter 0.25s, transform 0.25s, opacity 0.25s;
+  transition: filter 0.25s, transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.35s;
+}
+
+#dialogue.show .portrait.left {
+  animation: slideL 0.45s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+#dialogue.show .portrait.right {
+  animation: slideR 0.45s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@keyframes slideL {
+  from { opacity: 0; translate: -30% 0; }
+  to { opacity: 1; translate: 0 0; }
+}
+
+@keyframes slideR {
+  from { opacity: 0; translate: 30% 0; }
+  to { opacity: 1; translate: 0 0; }
+}
+
+#dialogue .box {
+  animation: rise 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@keyframes rise {
+  from { opacity: 0; translate: 0 14px; }
+  to { opacity: 1; translate: 0 0; }
 }
 
 .portrait.left {
@@ -1054,4 +1104,236 @@ body.menu-open #field-ui {
   .d-name {
     font-size: 24px;
   }
+}
+
+
+/* ───────────── M3: recollection pop-up, title menu, codex ───────────── */
+
+#recollection {
+  left: 6%;
+  right: 6%;
+  bottom: 9%;
+  text-align: center;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 0.8s, transform 0.8s cubic-bezier(0.2, 0.8, 0.2, 1);
+  text-shadow: 0 1px 6px #000, 0 0 18px rgba(0, 0, 0, 0.8);
+  pointer-events: none;
+}
+
+#recollection.show {
+  opacity: 1;
+  transform: none;
+}
+
+#recollection .r-label {
+  font-size: calc(var(--u) * 11px);
+  letter-spacing: 0.35em;
+  text-transform: uppercase;
+  color: #c8d4ff;
+}
+
+#recollection .r-text {
+  margin: 4px 0 0;
+  font-style: italic;
+  font-size: calc(var(--u) * 16px);
+  line-height: 1.4;
+  color: #f2f4ff;
+}
+
+.title-menu {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  margin-top: 34px;
+}
+
+.title-menu button {
+  min-width: 220px;
+  padding: 12px 20px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--paper);
+  font-size: 20px;
+  letter-spacing: 0.06em;
+  transition: border-color 0.2s, background 0.2s, transform 0.2s;
+}
+
+.title-menu button.primary {
+  border-color: rgba(255, 211, 138, 0.5);
+  background: rgba(240, 160, 64, 0.14);
+  color: var(--amber-soft);
+}
+
+.title-menu button:hover,
+.title-menu button:focus-visible {
+  border-color: var(--amber);
+  transform: translateY(-2px);
+  outline: none;
+}
+
+#codex {
+  align-items: flex-start;
+  overflow-y: auto;
+  padding: max(20px, env(safe-area-inset-top)) 16px max(20px, env(safe-area-inset-bottom));
+  background: rgba(10, 7, 14, 0.94);
+}
+
+.codex-inner {
+  width: 100%;
+  max-width: 760px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.codex-inner h2 {
+  margin: 0 0 12px;
+  font-weight: 400;
+  font-style: italic;
+  font-size: 32px;
+  color: var(--amber-soft);
+}
+
+.tabs {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.tab {
+  padding: 8px 16px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: none;
+  color: var(--muted);
+  font-size: 17px;
+}
+
+.tab.on {
+  border-color: var(--amber);
+  color: var(--amber-soft);
+  background: rgba(240, 160, 64, 0.1);
+}
+
+.codex-body {
+  text-align: left;
+  margin-bottom: 12px;
+}
+
+.codex-body h3 {
+  margin: 22px 0 8px;
+  font-weight: 600;
+  font-size: 18px;
+  color: var(--amber-soft);
+  letter-spacing: 0.04em;
+}
+
+.codex-body h3 small {
+  font-weight: 400;
+  color: var(--dim);
+  margin-left: 8px;
+}
+
+.codex-body ol {
+  margin: 0;
+  padding-left: 22px;
+}
+
+.codex-body li {
+  margin: 0 0 8px;
+  line-height: 1.45;
+  font-size: 17px;
+}
+
+.codex-body li.locked {
+  color: var(--dim);
+  font-style: italic;
+}
+
+.person {
+  display: grid;
+  grid-template-columns: 84px 1fr;
+  gap: 14px;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.person canvas {
+  width: 84px;
+  height: auto;
+}
+
+.person b {
+  font-size: 19px;
+  color: var(--amber-soft);
+}
+
+.person i {
+  display: block;
+  color: var(--muted);
+  font-size: 15px;
+}
+
+.person p {
+  margin: 4px 0 0;
+  font-size: 15px;
+  line-height: 1.4;
+}
+
+.person.locked {
+  opacity: 0.45;
+}
+
+.elegy-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 16px;
+}
+
+.elegy-table td {
+  padding: 7px 4px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+}
+
+.elegy-table td.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.elegy-table tr.unseen td {
+  color: var(--dim);
+  font-style: italic;
+}
+
+#codex button.quiet {
+  padding: 10px 18px;
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 17px;
+}
+
+#interlude .il-onward {
+  display: block;
+  margin: 18px auto 4px;
+  min-width: 200px;
+  padding: 12px 18px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 211, 138, 0.45);
+  background: rgba(240, 160, 64, 0.12);
+  color: var(--amber-soft);
+  font-size: 19px;
+  opacity: 0;
+  transition: opacity 1.2s;
+}
+
+#interlude .il-onward.show {
+  opacity: 1;
 }
