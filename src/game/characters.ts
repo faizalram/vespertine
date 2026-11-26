@@ -133,11 +133,12 @@ function optionCount(g: Game): number {
   return Math.max(1, Math.min(4, Math.floor(g.player.power)));
 }
 
+// Options float clear of the heroine's (big, chibi) head: beside her, or above it.
 const STD_WIDE: ReadonlyArray<ReadonlyArray<readonly [number, number]>> = [
-  [], [[0, -26]], [[-24, 4], [24, 4]], [[-26, 6], [26, 6], [0, -26]], [[-26, 6], [26, 6], [-15, -14], [15, -14]],
+  [], [[0, -36]], [[-24, 4], [24, 4]], [[-26, 6], [26, 6], [0, -36]], [[-26, 6], [26, 6], [-21, -20], [21, -20]],
 ];
 const STD_FOCUS: ReadonlyArray<ReadonlyArray<readonly [number, number]>> = [
-  [], [[0, -24]], [[-10, -14], [10, -14]], [[-12, -12], [12, -12], [0, -24]], [[-12, -12], [12, -12], [-5, -22], [5, -22]],
+  [], [[0, -34]], [[-10, -31], [10, -31]], [[-13, -28], [13, -28], [0, -36]], [[-15, -27], [15, -27], [-5, -36], [5, -36]],
 ];
 
 /** Distance from point to segment. */
@@ -375,7 +376,7 @@ export const ILSE: CharacterDef = {
 // ───────────────────────────── Tessel ─────────────────────────────
 
 const DOLL_WIDE: ReadonlyArray<readonly [number, number]> = [[-30, 2], [30, 2]];
-const DOLL_GUARD: ReadonlyArray<readonly [number, number]> = [[-11, -24], [11, -24]];
+const DOLL_GUARD: ReadonlyArray<readonly [number, number]> = [[-12, -32], [12, -32]];
 const DOLL_ABSORB = 6;
 const DOLL_CRACK = 240;
 
@@ -566,7 +567,7 @@ const WREN_WIDE: ReadonlyArray<ReadonlyArray<readonly [number, number]>> = [
   [], [[0, 18]], [[-18, 12], [18, 12]], [[-20, 10], [20, 10], [0, 22]], [[-22, 8], [22, 8], [-10, 22], [10, 22]],
 ];
 const WREN_FOCUS: ReadonlyArray<ReadonlyArray<readonly [number, number]>> = [
-  [], [[0, -22]], [[-12, -16], [12, -16]], [[-14, -14], [14, -14], [0, -26]], [[-16, -12], [16, -12], [-6, -26], [6, -26]],
+  [], [[0, -34]], [[-11, -31], [11, -31]], [[-14, -28], [14, -28], [0, -36]], [[-16, -27], [16, -27], [-6, -36], [6, -36]],
 ];
 
 export const WREN: CharacterDef = {

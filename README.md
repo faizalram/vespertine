@@ -58,13 +58,17 @@ URL flags (for testing):
 
 During a boss fight, `1`–`5` jump to a phase.
 
+## Art preview
+
+With `npm run dev` running, open `/dev/sheet.html` to see every portrait expression with blink and talk frames, or `/dev/sheet.html?puppets` for the in-game puppets in each expression.
+
 ## Layout
 
 ```
 src/core      loop helpers: seeded RNG, coroutine scheduler, input
 src/game      deterministic simulation (no rendering imports)
 src/content   stage scripts, enemy behaviours, boss patterns and dialogue (generator coroutines)
-src/render    Three.js: procedural vector atlas, instanced sprites, 3D background
+src/render    Three.js: procedural vector atlas, instanced sprites, 3D backgrounds, spring-driven puppets
 src/audio     WebAudio-synthesised SFX and procedural music (placeholder)
-src/ui        responsive layout, DOM HUD, dialogue, vector portraits
+src/ui        responsive layout, DOM HUD, dialogue, live vector portraits (ui/art: drawing kit)
 ```

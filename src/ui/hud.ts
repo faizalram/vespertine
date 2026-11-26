@@ -1,6 +1,7 @@
 import { DIFFICULTIES } from '../game/defs';
 import { DIALOGUE_CPF, type Game } from '../game/game';
 import type { Layout } from './layout';
+import { LivePortrait } from './livePortrait';
 import { paintPortrait, SPEAKER_NAMES } from './portraits';
 
 const $ = <T extends HTMLElement = HTMLElement>(sel: string) => document.querySelector(sel) as T;
@@ -24,6 +25,8 @@ export class Hud {
   private dlg = $('#dialogue');
   private dlgLeft = $<HTMLCanvasElement>('#dialogue .portrait.left');
   private dlgRight = $<HTMLCanvasElement>('#dialogue .portrait.right');
+  private liveLeft = new LivePortrait(this.dlgLeft);
+  private liveRight = new LivePortrait(this.dlgRight);
   private dlgSpeaker = $('#dialogue .speaker');
   private dlgText = $('#dialogue .text');
   private dlgMore = $('#dialogue .more');
@@ -32,6 +35,7 @@ export class Hud {
   hiScore = 0;
 
   constructor() {
+    this.liveRight.flip = true;
     for (const el of $$('[data-k]')) {
       const k = el.dataset.k!;
       const list = this.els.get(k) ?? [];
@@ -154,15 +158,17 @@ export class Hud {
       this.lastDialogueKey = key;
       const isLeft = line.who === d.def.left;
       // Each side keeps its last expression while the other speaks.
-      if (isLeft) paintPortrait(this.dlgLeft, line.who, line.expr);
-      else paintPortrait(this.dlgRight, line.who, line.expr);
+      if (isLeft) this.liveLeft.show(line.who, line.expr);
+      else this.liveRight.show(line.who, line.expr);
       if (d.i === 0) {
-        // Paint the silent side with a neutral face the first time.
-        if (isLeft) paintPortrait(this.dlgRight, d.def.right, 'neutral');
-        else paintPortrait(this.dlgLeft, d.def.left, 'neutral');
+        // The silent side starts with a neutral face.
+        if (isLeft) this.liveRight.show(d.def.right, 'neutral');
+        else this.liveLeft.show(d.def.left, 'neutral');
       }
       this.dlgLeft.classList.toggle('dim', !isLeft);
       this.dlgRight.classList.toggle('dim', isLeft);
+      this.liveLeft.dim = !isLeft;
+      this.liveRight.dim = isLeft;
       // The boss's portrait only appears once she has introduced herself.
       const rightSeen = d.def.lines.slice(0, d.i + 1).some((l) => l.who === d.def.right);
       this.dlgRight.style.opacity = rightSeen ? '1' : '0';
@@ -170,6 +176,11 @@ export class Hud {
       this.dlgSpeaker.classList.toggle('right', !isLeft);
     }
     const shown = Math.min(line.text.length, Math.floor(d.age * DIALOGUE_CPF));
+    // Lips move only while the words are still appearing, and not for thoughts in parentheses.
+    const typing = shown < line.text.length && !line.text.startsWith('(');
+    const leftSpeaks = line.who === d.def.left;
+    this.liveLeft.setSpeaking(typing && leftSpeaks);
+    this.liveRight.setSpeaking(typing && !leftSpeaks);
     this.set('__dlgText', line.text.slice(0, shown));
     this.dlgText.textContent = this.cache.get('__dlgText')!;
     this.dlgMore.classList.toggle('show', shown >= line.text.length);

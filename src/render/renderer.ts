@@ -8,6 +8,8 @@ import { C, PALETTE } from '../game/palette';
 import { LaserPool } from '../game/pools';
 import { S } from '../game/sprites';
 import { buildAtlas } from './atlas';
+import { Puppet, type Reaction } from './puppet';
+import { puppets, type Rig } from './puppetArt';
 import { createBackground, NO_CUES, type CameraCues, type SceneId, type StageBackground } from './background';
 import { SpriteBatch } from './spriteBatch';
 
@@ -90,6 +92,8 @@ export class Renderer {
   /** Recent interpolated player positions (render frames) for afterimages. */
   private readonly ghosts: Array<[number, number]> = [];
   private bossGhosts: Array<[number, number]> = [];
+  private puppet: Puppet | null = null;
+  private rigs: Record<string, Rig>;
   reduceFlash = false;
   drawCalls = 0;
 
@@ -107,7 +111,9 @@ export class Renderer {
     this.cam = new THREE.OrthographicCamera(0, FIELD_W, 0, FIELD_H, -10, 10);
     this.cam.position.z = 5;
 
-    const atlas = buildAtlas();
+    const pup = puppets();
+    this.rigs = pup.rigs;
+    const atlas = buildAtlas(pup.defs);
     const tex = new THREE.CanvasTexture(atlas.canvas);
     tex.flipY = false;
     tex.minFilter = THREE.LinearFilter;
@@ -169,6 +175,22 @@ export class Renderer {
     const elegy = cues.elegy ? 1 : 0;
     this.elegyFade += (elegy - this.elegyFade) * Math.min(1, dt * 3);
     this.bg.update(dt, cues);
+    if (g) {
+      if (!this.puppet || this.puppet.char !== g.char.id) this.puppet = new Puppet(g.char.id);
+      const p = g.player;
+      this.puppet.update(dt, { vx: p.x - p.px, vy: p.y - p.py, focus: p.focus, hurt: p.deathTimer >= 0, invulnerable: p.invuln > 0 });
+    }
+  }
+
+  /** Let the heroine react to what just happened. */
+  react(ev: string): void {
+    const pup = this.puppet;
+    if (!pup) return;
+    const map: Record<string, Reaction> = {
+      bomb: 'cast', skill: 'skill', death: 'hurt', capture: 'joy', extend: 'joy', bombGet: 'joy', recollection: 'soft',
+    };
+    if (map[ev]) pup.react(map[ev]);
+    else if (ev === 'graze' && Math.random() < 0.2) pup.react('flinch');
   }
 
   /** @param alpha interpolation factor between the previous and the current tick (0..1). */
@@ -194,6 +216,12 @@ export class Renderer {
     }
     gl.setScissorTest(false);
     this.drawCalls = gl.info.render.calls;
+  }
+
+  /** Draw the current heroine's puppet (full colour, or tinted as an afterimage/ghost). */
+  private drawHeroine(g: Game, x: number, y: number, alpha: number, tint: readonly [number, number, number] = [1, 1, 1]): void {
+    const rig = this.rigs[g.char.id];
+    if (this.puppet && rig) this.puppet.draw(this.actors, rig, x, y, alpha, tint);
   }
 
   private fill(g: Game, a: number): void {
@@ -355,7 +383,7 @@ export class Renderer {
     const mg = g.memoryGhost;
     if (mg.active) {
       fx.push(S.ghost, mg.x, mg.y, 0, 2.6, 0.4, 0.7, 1, 0.35 + 0.1 * Math.sin(t * 8));
-      actors.push(ch.sprite, mg.x, mg.y, 0, 1, 0.5, 0.75, 1, 0.35);
+      this.drawHeroine(g, mg.x, mg.y, 0.35, [0.5, 0.75, 1]);
     }
 
     // ── Player: afterimages, banking, hover; options trailing on springs.
@@ -363,21 +391,26 @@ export class Renderer {
     this.ghosts.unshift([px, py]);
     if (this.ghosts.length > 12) this.ghosts.length = 12;
     if (cs.afterimage.t > 0) {
-      actors.push(ch.sprite, cs.afterimage.x, cs.afterimage.y, 0, 1, 0.6, 0.9, 1, (cs.afterimage.t / 40) * 0.45);
+      this.drawHeroine(g, cs.afterimage.x, cs.afterimage.y, (cs.afterimage.t / 40) * 0.45, [0.6, 0.9, 1]);
     }
     if (!g.over) {
       const speed = Math.hypot(p.x - p.px, p.y - p.py);
       if (speed > 2.5 && !p.focus) {
         for (let k = 3; k <= 9; k += 3) {
           const gp = this.ghosts[k];
-          if (gp) actors.push(ch.sprite, gp[0], gp[1], 0, 1, accent[0], accent[1], accent[2], 0.22 * (1 - k / 11));
+          if (gp) this.drawHeroine(g, gp[0], gp[1], 0.22 * (1 - k / 11), accent);
         }
       }
       const blink = p.invuln > 0 && Math.floor(f / 3) % 2 === 0;
       const alpha = blink ? 0.35 : 1;
-      const bank = clamp(p.vxSmooth / ch.speed, -1, 1);
       const hover = Math.sin(t * 3.1) * 1.2;
-      actors.push(ch.sprite, px, py + hover, bank * 0.16, 1 - Math.abs(bank) * 0.06, 1, 1, 1, alpha, 0, 0, 1 + Math.abs(bank) * 0.05);
+      this.drawHeroine(g, px, py + hover, alpha);
+      // Sayo's lantern breathes light.
+      const pup = this.puppet;
+      if (pup?.glowAt.on) {
+        const flick = 0.85 + 0.15 * Math.sin(t * 13) * Math.sin(t * 7.3);
+        fx.push(S.wisp, pup.glowAt.x, pup.glowAt.y, 0, 1.9 * flick, 1, 0.68, 0.3, 0.55 * alpha);
+      }
       if (ch.id === 'tessel') {
         cs.dolls.forEach((d, i) => {
           const dx2 = lerp(p.emittersPrev[i][0], p.emitters[i][0], a);

@@ -507,6 +507,18 @@ Mobile landscape is supported using the desktop layout, with controls overlaid o
   - **Backgrounds:** low-poly 3D geometry with flat shading, fog and gradient skies (Three.js).
 - **UI:** thin serif typography, candle and paper motifs, ink-stain transitions.
 
+### 8.3.0 Living Characters (added after M3)
+
+The heroines should feel like people, not stickers. Two systems carry that:
+
+- **In-game puppets.** Each heroine is a chibi puppet (big head, expressive eyes) built from parts: back hair or veil, torso, skirt or coat tails, two arms, a head with five expressions (open, focused, blinking, happy, hurt), and her own props. Every part rides a damped spring, so hair, sleeves and skirts trail her movement and settle with a little overshoot, and hanging props swing like pendulums.
+  - **Sayo:** her lantern swings from her hand and glows with a flicker. Habit: she checks it now and then, setting it swaying.
+  - **Ilse:** her compass rides behind her and her cowlick bounces. Habit: the cowlick springs up.
+  - **Tessel:** her bow wiggles and her ringlets bounce. Habit: a doll's curious head tilt.
+  - **Wren:** her veil flows, her oar sways and her bell swings. Habit: eyes closed for a moment in silent prayer.
+  - **Reactions:** arms rise for a Litany, the right hand lifts for a skill, she flinches at close grazes, winces when hit, smiles and hops at an Elegy capture or extra life, and closes her eyes softly when a Recollection is found. She blinks on her own schedule and narrows her eyes when focused.
+- **Live portraits.** Portraits are drawn as a base plus a face (eyes, brows, mouth), so any expression can blink and talk. In dialogue and on character select they breathe, sway slightly, blink (sometimes twice), move their lips while their line types out (not for thoughts in parentheses), and give a small start when their expression changes. The selected heroine on the select screen greets you with her own expression.
+
 ### 8.3.1 Motion & Animation (added in M3)
 
 Motion should feel fluid at any refresh rate and give every object weight and personality. Gameplay hitboxes never change; all of this is presentation.

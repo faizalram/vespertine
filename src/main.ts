@@ -14,6 +14,7 @@ import { EMPTY_INPUT, Game, type GameOptions } from './game/game';
 import { Renderer } from './render/renderer';
 import { Hud } from './ui/hud';
 import { computeLayout, readSafeInsets, type Layout } from './ui/layout';
+import { LivePortrait } from './ui/livePortrait';
 import { paintPortrait, SPEAKER_NAMES } from './ui/portraits';
 
 type State = 'title' | 'codex' | 'select' | 'difficulty' | 'play' | 'paused' | 'over' | 'clear' | 'interlude';
@@ -136,6 +137,9 @@ function enterSelect(): void {
 }
 
 let cardsBuilt = false;
+const cardPortraits = new Map<CharId, LivePortrait>();
+/** Each heroine greets you in her own way when you pick her card. */
+const GREETING: Record<CharId, string> = { sayo: 'soft', ilse: 'grin', tessel: 'smile', wren: 'soft' };
 function buildCards(): void {
   if (cardsBuilt) return;
   cardsBuilt = true;
@@ -146,7 +150,10 @@ function buildCards(): void {
     card.className = 'card';
     card.dataset.char = id;
     const cv = document.createElement('canvas');
-    paintPortrait(cv, id, 'neutral');
+    const live = new LivePortrait(cv);
+    live.breath = 0.6;
+    live.show(id, 'neutral');
+    cardPortraits.set(id, live);
     const name = document.createElement('span');
     name.className = 'c-name';
     name.textContent = ch.name.replace('Sister ', '');
@@ -166,6 +173,7 @@ function selectChar(id: CharId): void {
   charId = id;
   const ch = CHARACTERS[id];
   document.querySelectorAll<HTMLElement>('#select .card').forEach((c) => c.classList.toggle('sel', c.dataset.char === id));
+  for (const [cid, live] of cardPortraits) live.show(cid, cid === id ? GREETING[cid] : 'neutral');
   $('#select .d-title').textContent = ch.title;
   $('#select .d-name').textContent = ch.name;
   $('#select .d-quote').textContent = ch.quote;
@@ -603,6 +611,7 @@ function vibrate(p: number | number[]): void {
 
 function handleEvents(g: Game): void {
   for (const ev of g.events) {
+    renderer.react(ev);
     const sfx = DIRECT_SFX[ev];
     if (sfx) {
       audio.play(sfx);
@@ -764,6 +773,7 @@ function frame(now: number): void {
   // Fall behind gracefully: slow down instead of skipping ahead (genre convention).
   if (acc > TICK) acc = 0;
 
+  LivePortrait.updateAll(now);
   const inGame = game !== null && (state === 'play' || state === 'paused' || state === 'over' || state === 'clear');
   if (state !== 'paused') renderer.updateVisuals(dt, inGame ? game : null);
   // Interpolate between the previous and current tick (frozen while paused or slowed).

@@ -23,15 +23,17 @@ export interface Region {
   mode: number;
 }
 
-type Draw = (c: CanvasRenderingContext2D, w: number, h: number) => void;
+export type Draw = (c: CanvasRenderingContext2D, w: number, h: number) => void;
 
-interface Def {
+export interface Def {
   id: number;
   /** Cell size in atlas pixels (drawn at 2x field resolution). */
   w: number;
   h: number;
   mode: number;
   draw: Draw;
+  /** Atlas pixels per field unit (default 2; puppet parts use 3 for crisp phones). */
+  scale?: number;
 }
 
 const BODY = 'rgb(255,0,0)';
@@ -1401,25 +1403,26 @@ export interface Atlas {
 }
 
 /** Shelf-pack every sprite into one canvas, drawing each with 1px padding. */
-export function buildAtlas(): Atlas {
-  const size = 1024;
+export function buildAtlas(extra: Def[] = []): Atlas {
+  const W = 2048;
+  const H = 1024;
   const canvas = document.createElement('canvas');
-  canvas.width = size;
-  canvas.height = size;
+  canvas.width = W;
+  canvas.height = H;
   const ctx = canvas.getContext('2d')!;
   const regions: Region[] = [];
-  const sorted = [...DEFS].sort((a, b) => b.h - a.h);
+  const sorted = [...DEFS, ...extra].sort((a, b) => b.h - a.h);
   let x = 0;
   let y = 0;
   let rowH = 0;
   const pad = 2;
   for (const d of sorted) {
-    if (x + d.w + pad > size) {
+    if (x + d.w + pad > W) {
       x = 0;
       y += rowH + pad;
       rowH = 0;
     }
-    if (y + d.h > size) throw new Error('atlas overflow');
+    if (y + d.h > H) throw new Error('atlas overflow');
     ctx.save();
     ctx.translate(x, y);
     ctx.beginPath();
@@ -1428,13 +1431,14 @@ export function buildAtlas(): Atlas {
     d.draw(ctx, d.w, d.h);
     ctx.restore();
     // Half-texel inset avoids bleeding from neighbours under linear filtering.
+    const px = d.scale ?? 2; // atlas pixels per field unit
     regions[d.id] = {
-      u0: (x + 0.5) / size,
-      v0: (y + 0.5) / size,
-      u1: (x + d.w - 0.5) / size,
-      v1: (y + d.h - 0.5) / size,
-      w: d.w / 2,
-      h: d.h / 2,
+      u0: (x + 0.5) / W,
+      v0: (y + 0.5) / H,
+      u1: (x + d.w - 0.5) / W,
+      v1: (y + d.h - 0.5) / H,
+      w: d.w / px,
+      h: d.h / px,
       mode: d.mode,
     };
     x += d.w + pad;
