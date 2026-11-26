@@ -12,7 +12,12 @@ export const IT = {
   life: 3,
   bomb: 4,
   star: 5,
+  /** Wren's bell turns bullets into souls. */
+  soul: 6,
 } as const;
+
+export type CharId = 'sayo' | 'ilse' | 'tessel' | 'wren';
+export const CHAR_IDS: readonly CharId[] = ['sayo', 'ilse', 'tessel', 'wren'];
 
 /** A boss phase: a regular attack (elegy null) or a named Elegy. */
 export interface PhaseDef {
@@ -52,7 +57,7 @@ export interface EnemyDef {
 
 export type Behavior = (g: Game, e: Enemy) => Task;
 
-export type Speaker = 'sayo' | 'hoshiko';
+export type Speaker = CharId | 'hoshiko';
 
 export interface DialogueLine {
   who: Speaker;

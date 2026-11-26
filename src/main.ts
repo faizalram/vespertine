@@ -1,21 +1,24 @@
 import './style.css';
 import { AudioEngine, type Sfx } from './audio/audio';
 import { practiceScript } from './content/practice';
-import { STAGE1_INTERLUDE, stage1 } from './content/stage1';
+import { STAGE1_STORY, stage1 } from './content/stage1';
 import { Input } from './core/input';
 import { TICK } from './game/constants';
-import { DIFFICULTIES, type DifficultyId } from './game/defs';
+import { CHARACTERS } from './game/characters';
+import { CHAR_IDS, DIFFICULTIES, type CharId, type DifficultyId } from './game/defs';
 import { EMPTY_INPUT, Game, type GameOptions } from './game/game';
 import { Renderer } from './render/renderer';
 import { Hud } from './ui/hud';
 import { computeLayout, readSafeInsets, type Layout } from './ui/layout';
+import { paintPortrait } from './ui/portraits';
 
-type State = 'title' | 'difficulty' | 'play' | 'paused' | 'over' | 'clear' | 'interlude';
+type State = 'title' | 'select' | 'difficulty' | 'play' | 'paused' | 'over' | 'clear' | 'interlude';
 
 const params = new URLSearchParams(location.search);
 const GOD = params.has('god');
 const PRACTICE = params.has('practice') || params.has('stress');
 const START_AT: GameOptions['startAt'] = params.has('boss') ? 'boss' : params.has('midboss') ? 'midboss' : 'start';
+const FORCED_CHAR = CHAR_IDS.includes(params.get('char') as CharId) ? (params.get('char') as CharId) : null;
 const FORCED_DIFF = params.has('diff') ? (Math.max(0, Math.min(3, Number(params.get('diff')))) as DifficultyId) : null;
 
 const $ = <T extends HTMLElement = HTMLElement>(sel: string) => document.querySelector(sel) as T;
@@ -34,6 +37,7 @@ let showDebug = params.has('debug') || params.has('stress');
 // ───────────────────────────── save data ─────────────────────────────
 
 interface SaveData {
+  lastChar?: CharId;
   hi: Record<string, number>;
   elegies: Record<string, { attempts: number; captures: number }>;
   stage1Clears: Record<string, number>;
@@ -50,6 +54,7 @@ function loadSave(): SaveData {
   return { hi: {}, elegies: {}, stage1Clears: {} };
 }
 const save = loadSave();
+let charId: CharId = FORCED_CHAR ?? save.lastChar ?? 'sayo';
 function persist(): void {
   try {
     localStorage.setItem(SAVE_KEY, JSON.stringify(save));
@@ -59,14 +64,14 @@ function persist(): void {
 }
 function recordHiScore(): void {
   if (!game) return;
-  const k = String(game.diff);
+  const k = `${game.char.id}|${game.diff}`;
   save.hi[k] = Math.max(save.hi[k] ?? 0, game.score);
   persist();
 }
 function elegyStat(g: Game) {
   const def = g.boss.def?.phases[g.boss.phase];
   if (!def) return null;
-  const key = `${def.id}|sayo|${g.diff}`;
+  const key = `${def.id}|${g.char.id}|${g.diff}`;
   return (save.elegies[key] ??= { attempts: 0, captures: 0 });
 }
 
@@ -85,10 +90,10 @@ relayout();
 
 // ───────────────────────────── screens ─────────────────────────────
 
-const SCREENS = ['#title', '#difficulty', '#pause', '#over', '#clear', '#interlude'];
+const SCREENS = ['#title', '#select', '#difficulty', '#pause', '#over', '#clear', '#interlude'];
 function showScreen(id: string | null): void {
   for (const s of SCREENS) $(s).classList.toggle('show', s === id);
-  document.body.classList.toggle('title-screen', id === '#title' || id === '#difficulty' || id === '#interlude');
+  document.body.classList.toggle('title-screen', id === '#title' || id === '#select' || id === '#difficulty' || id === '#interlude');
   document.body.classList.toggle('menu-open', id !== null);
   if (id) {
     // Focus the first sensible button for keyboard/gamepad navigation.
@@ -98,9 +103,67 @@ function showScreen(id: string | null): void {
 }
 showScreen('#title');
 
-function enterDifficulty(): void {
+function enterSelect(): void {
   audio.unlock();
   audio.playTrack('title');
+  if (FORCED_CHAR || PRACTICE) {
+    enterDifficulty();
+    return;
+  }
+  buildCards();
+  state = 'select';
+  showScreen('#select');
+  selectChar(charId);
+}
+
+let cardsBuilt = false;
+function buildCards(): void {
+  if (cardsBuilt) return;
+  cardsBuilt = true;
+  const box = $('#select .cards');
+  for (const id of CHAR_IDS) {
+    const ch = CHARACTERS[id];
+    const card = document.createElement('button');
+    card.className = 'card';
+    card.dataset.char = id;
+    const cv = document.createElement('canvas');
+    paintPortrait(cv, id, 'neutral');
+    const name = document.createElement('span');
+    name.className = 'c-name';
+    name.textContent = ch.name.replace('Sister ', '');
+    const stars = document.createElement('span');
+    stars.className = 'c-stars';
+    stars.textContent = '★'.repeat(ch.stars) + '☆'.repeat(3 - ch.stars);
+    card.append(cv, name, stars);
+    card.addEventListener('click', () => {
+      if (charId === id && card.classList.contains('sel')) chooseChar();
+      else selectChar(id);
+    });
+    box.append(card);
+  }
+}
+
+function selectChar(id: CharId): void {
+  charId = id;
+  const ch = CHARACTERS[id];
+  document.querySelectorAll<HTMLElement>('#select .card').forEach((c) => c.classList.toggle('sel', c.dataset.char === id));
+  $('#select .d-title').textContent = ch.title;
+  $('#select .d-name').textContent = ch.name;
+  $('#select .d-quote').textContent = ch.quote;
+  $('#select .d-stance').textContent = ch.stance;
+  $('#select .d-play').textContent = ch.playstyle;
+  $('#select .d-meta').textContent = `Skill: ${ch.skillName} · ${ch.bombName}`;
+  $<HTMLButtonElement>('[data-act="choose"]').focus({ preventScroll: true });
+}
+
+function chooseChar(): void {
+  save.lastChar = charId;
+  persist();
+  audio.play('select');
+  enterDifficulty();
+}
+
+function enterDifficulty(): void {
   if (FORCED_DIFF !== null || PRACTICE) {
     startGame(FORCED_DIFF ?? 1);
     return;
@@ -126,8 +189,8 @@ function startGame(diff: DifficultyId): void {
 
 function newGame(): void {
   const script = PRACTICE ? practiceScript(params.has('stress')) : stage1;
-  game = new Game(script, { difficulty, startAt: START_AT, seed: (Date.now() & 0xffffff) | 1 });
-  hud.hiScore = save.hi[String(difficulty)] ?? 0;
+  game = new Game(script, { difficulty, char: charId, startAt: START_AT, seed: (Date.now() & 0xffffff) | 1 });
+  hud.hiScore = save.hi[`${charId}|${difficulty}`] ?? 0;
   input.flush();
   audio.resume();
 }
@@ -202,23 +265,24 @@ function showInterlude(): void {
   state = 'interlude';
   audio.stopMusic();
   showScreen('#interlude');
-  $('#interlude .il-title').textContent = STAGE1_INTERLUDE.title;
+  const interlude = STAGE1_STORY[charId].interlude;
+  $('#interlude .il-title').textContent = interlude.title;
   const box = $('#interlude .il-lines');
   box.innerHTML = '';
   const end = $('#interlude .il-end');
   end.classList.remove('show');
-  STAGE1_INTERLUDE.lines.forEach((text, i) => {
+  interlude.lines.forEach((text, i) => {
     const p = document.createElement('p');
     p.textContent = text;
     box.append(p);
     setTimeout(() => p.classList.add('show'), 600 + i * 1800);
   });
-  setTimeout(() => end.classList.add('show'), 600 + STAGE1_INTERLUDE.lines.length * 1800);
+  setTimeout(() => end.classList.add('show'), 600 + interlude.lines.length * 1800);
 }
 
 // ───────────────────────────── DOM wiring ─────────────────────────────
 
-$('#title').addEventListener('click', () => state === 'title' && enterDifficulty());
+$('#title').addEventListener('click', () => state === 'title' && enterSelect());
 document.querySelectorAll<HTMLButtonElement>('[data-diff]').forEach((b) =>
   b.addEventListener('click', () => {
     if (state !== 'difficulty' || b.disabled) return;
@@ -267,6 +331,12 @@ document.querySelectorAll<HTMLButtonElement>('[data-act]').forEach((b) =>
       case 'back':
         state = 'title';
         showScreen('#title');
+        break;
+      case 'choose':
+        chooseChar();
+        break;
+      case 'toSelect':
+        enterSelect();
         break;
       case 'continue':
         if (game?.continueGame()) {
@@ -322,10 +392,7 @@ function menuKey(e: KeyboardEvent): boolean {
   }
   if (e.code === 'KeyX' || e.code === 'Escape') {
     if (state === 'paused') resume();
-    else if (state === 'difficulty') {
-      state = 'title';
-      showScreen('#title');
-    }
+    else if (state === 'difficulty') enterSelect();
     return true;
   }
   return false;
@@ -345,8 +412,25 @@ window.addEventListener('keydown', (e) => {
   if (state === 'title') {
     if (e.code === 'KeyZ' || e.code === 'Enter' || e.code === 'Space') {
       e.preventDefault();
-      enterDifficulty();
+      enterSelect();
     }
+    return;
+  }
+  if (state === 'select') {
+    const i = CHAR_IDS.indexOf(charId);
+    if (e.code === 'ArrowRight' || e.code === 'ArrowDown') {
+      selectChar(CHAR_IDS[(i + 1) % 4]);
+      audio.play('select');
+    } else if (e.code === 'ArrowLeft' || e.code === 'ArrowUp') {
+      selectChar(CHAR_IDS[(i + 3) % 4]);
+      audio.play('select');
+    } else if (e.code === 'KeyZ' || e.code === 'Enter' || e.code === 'Space') chooseChar();
+    else if (e.code === 'KeyX' || e.code === 'Escape') {
+      state = 'title';
+      showScreen('#title');
+    }
+    e.preventDefault();
+    input.takePause();
     return;
   }
   if (state === 'difficulty' || state === 'paused' || state === 'over' || state === 'clear' || state === 'interlude') {
@@ -363,7 +447,7 @@ window.addEventListener('keydown', (e) => {
 // ───────────────────────────── events ─────────────────────────────
 
 const DIRECT_SFX: Partial<Record<string, Sfx>> = {
-  shot: 'shot', graze: 'graze', phaseEnd: 'phaseEnd', vigil: 'vigil', bossHit: 'bossHit',
+  shot: 'shot', graze: 'graze', phaseEnd: 'phaseEnd', bossHit: 'bossHit',
   enemyHit: 'enemyHit', enemyDie: 'enemyDie', item: 'item', bossDefeat: 'bossDefeat',
 };
 
@@ -404,7 +488,7 @@ function handleEvents(g: Game): void {
         if (ev === 'capture') {
           const def = g.boss.def?.phases[g.boss.phase];
           if (def) {
-            const st = save.elegies[`${def.id}|sayo|${g.diff}`];
+            const st = save.elegies[`${def.id}|${g.char.id}|${g.diff}`];
             if (st) st.captures++;
           }
           persist();
@@ -432,6 +516,13 @@ function handleEvents(g: Game): void {
         break;
       case 'dialogueLine':
         audio.play('talk');
+        break;
+      case 'skill':
+        audio.play(({ sayo: 'vigil', ilse: 'pin', tessel: 'rewind', wren: 'bell' } as const)[g.char.id]);
+        if (g.char.id === 'wren') vibrate(30);
+        break;
+      case 'dollCrack':
+        audio.play('dollCrack');
         break;
       case 'gameover':
         showContinue();
@@ -512,7 +603,9 @@ function frame(now: number): void {
   if (inGame && game) {
     hud.update(game);
     const p = game.player;
-    btnSkill.classList.toggle('ready', p.vigilMeter >= 1 && !game.vigil.active);
+    const cs = game.cs;
+    const ready = game.char.id === 'ilse' ? cs.pinCooldown === 0 : cs.meter >= 1 && !cs.vigil.active;
+    btnSkill.classList.toggle('ready', ready);
     btnBomb.disabled = p.bombs <= 0;
   }
 

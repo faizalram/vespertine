@@ -1,7 +1,7 @@
 import { wait, type Task } from '../core/scheduler';
 import { BT } from '../game/bulletTypes';
 import { FIELD_H, FIELD_W, TAU } from '../game/constants';
-import { IT, type BossDef, type DialogueDef, type EnemyDef, type InterludeDef, type StageInfo } from '../game/defs';
+import { IT, type BossDef, type CharId, type DialogueDef, type EnemyDef, type InterludeDef, type StageInfo } from '../game/defs';
 import type { Enemy, Game } from '../game/game';
 import { C } from '../game/palette';
 import { S } from '../game/sprites';
@@ -418,6 +418,158 @@ export const STAGE1_INTERLUDE: InterludeDef = {
   ],
 };
 
+
+// ── Ilse: absurdist revolt ──
+
+const ILSE_PRE: DialogueDef = {
+  id: 'ilse.s1.pre',
+  left: 'ilse',
+  right: 'hoshiko',
+  lines: [
+    { who: 'ilse', expr: 'annoyed', text: 'No, no, no. The north terraces went white while I was inking the south ones.' },
+    { who: 'hoshiko', expr: 'happy', text: 'A visitor! With a pen! Are you writing us down? Nobody’s ever written us down!', bossIntro: true, music: 'boss1' },
+    { who: 'ilse', expr: 'smug', text: 'I’m mapping you. Before you go blank. It’s sort of my whole thing.' },
+    { who: 'hoshiko', expr: 'curious', text: 'What will you call it, on the map?' },
+    { who: 'ilse', expr: 'neutral', text: '…The field doesn’t have a name. Nobody remembers it.' },
+    { who: 'hoshiko', expr: 'proud', text: 'Then you get to pick! That’s the best part of finding something.' },
+    { who: 'ilse', expr: 'sad', text: 'It’ll fade anyway. The map, the name, all of it. Give it a week.' },
+    { who: 'hoshiko', expr: 'determined', text: 'So? The rice fades too, and I still guard it. If you want my field on your map, you’ll have to get past its scarecrow!' },
+    { who: 'ilse', expr: 'grin', text: 'Oh, finally. Something on this map that fights back.' },
+  ],
+};
+
+const ILSE_POST: DialogueDef = {
+  id: 'ilse.s1.post',
+  left: 'ilse',
+  right: 'hoshiko',
+  lines: [
+    { who: 'hoshiko', expr: 'hurt', text: 'Okay! Okay. You win. Draw your map.' },
+    { who: 'ilse', expr: 'smug', text: 'Done already. Terraces, the crooked path, and one very rude scarecrow.' },
+    { who: 'hoshiko', expr: 'happy', text: 'You drew me! …You drew me holding the scythe backwards.' },
+    { who: 'ilse', expr: 'grin', text: 'Artistic license.' },
+    { who: 'hoshiko', expr: 'curious', text: 'Did you name it?' },
+    { who: 'ilse', expr: 'sad', text: '“Hoshiko’s Field.” It’s wrong. Somebody else planted it.' },
+    { who: 'hoshiko', expr: 'proud', text: 'It’s not wrong. I’m the one who’s still here.' },
+    { who: 'ilse', expr: 'neutral', text: '(It’ll be blank by morning. Not that there’s ever a morning.)' },
+    { who: 'ilse', expr: 'grin', text: '(…Fine. One must imagine the cartographer smug.)' },
+  ],
+};
+
+const ILSE_INTERLUDE: InterludeDef = {
+  title: 'Vigil · after the fields',
+  lines: [
+    'I drew her field in eleven minutes. A personal best.',
+    'By the time I reached the road, the north edge had already gone white.',
+    'I keep doing the arithmetic: maps made, maps lost. It never comes out in my favour.',
+    'I keep doing it anyway. Maybe that’s the answer. Maybe that’s the only one.',
+  ],
+};
+
+// ── Tessel: identity ──
+
+const TESSEL_PRE: DialogueDef = {
+  id: 'tessel.s1.pre',
+  left: 'tessel',
+  right: 'hoshiko',
+  lines: [
+    { who: 'tessel', expr: 'blank', text: 'The rice is ripe. My left hand wants to cut it. I think it belonged to a farmer.' },
+    { who: 'hoshiko', expr: 'happy', text: 'Oh! Hello! You’re very shiny. Are you a scarecrow too?', bossIntro: true, music: 'boss1' },
+    { who: 'tessel', expr: 'curious', text: 'I am a doll. Are you a scarecrow?' },
+    { who: 'hoshiko', expr: 'proud', text: 'The best one! Somebody stuffed me full of straw and stood me up right here.' },
+    { who: 'tessel', expr: 'curious', text: 'Who?' },
+    { who: 'hoshiko', expr: 'curious', text: 'No idea. Does it matter?' },
+    { who: 'tessel', expr: 'neutral', text: 'I have been trying to decide. I am made of pieces of people no one remembers. A glass eye. A music box. A bride’s hands.' },
+    { who: 'tessel', expr: 'sad', text: 'If no one remembers who made me, I am not sure anyone is here.' },
+    { who: 'hoshiko', expr: 'determined', text: 'Well, I’m here, and I don’t let strangers walk through my field. That’s what I’m for. What are you for?' },
+    { who: 'tessel', expr: 'smile', text: 'I do not know. Let us find out together.' },
+  ],
+};
+
+const TESSEL_POST: DialogueDef = {
+  id: 'tessel.s1.post',
+  left: 'tessel',
+  right: 'hoshiko',
+  lines: [
+    { who: 'hoshiko', expr: 'hurt', text: 'Ow! Your dolls hit hard for such little things.' },
+    { who: 'tessel', expr: 'neutral', text: 'They are made of spare parts. Like me.' },
+    { who: 'hoshiko', expr: 'curious', text: 'Hey, doll. When you fought just now, were those your hands, or the bride’s?' },
+    { who: 'tessel', expr: 'blank', text: '…I did not check.' },
+    { who: 'hoshiko', expr: 'happy', text: 'Then they were yours! Nobody asks permission from their own hands.' },
+    { who: 'tessel', expr: 'surprised', text: 'Is that how it works?' },
+    { who: 'hoshiko', expr: 'proud', text: 'Somebody made me to scare crows. I decided to love the field. The deciding part is mine.' },
+    { who: 'tessel', expr: 'smile', text: '(The deciding part is mine.)' },
+    { who: 'tessel', expr: 'smile', text: '(My left hand remembers a wedding. Today, I think, it is happy for me.)' },
+  ],
+};
+
+const TESSEL_INTERLUDE: InterludeDef = {
+  title: 'Vigil · after the fields',
+  lines: [
+    'The scarecrow says the deciding part is hers.',
+    'I tried deciding something. I decided the rice was beautiful.',
+    'My glass eye agreed. My amber eye agreed. That is two votes.',
+    'I do not know whose eyes they were. But today they looked where I looked.',
+  ],
+};
+
+// ── Wren: letting go vs. forgetting ──
+
+const WREN_PRE: DialogueDef = {
+  id: 'wren.s1.pre',
+  left: 'wren',
+  right: 'hoshiko',
+  lines: [
+    { who: 'wren', expr: 'tired', text: 'So many fields, and not a single funeral. The Long Dusk is very tidy.' },
+    { who: 'hoshiko', expr: 'happy', text: 'A nun! Hello! Did somebody die? Nobody dies here!', bossIntro: true, music: 'boss1' },
+    { who: 'wren', expr: 'wry', text: 'I’m aware. It’s made my work rather quiet.' },
+    { who: 'hoshiko', expr: 'curious', text: 'What work?' },
+    { who: 'wren', expr: 'neutral', text: 'I carry souls across the river. When something ends, I help it let go.' },
+    { who: 'hoshiko', expr: 'sad', text: '…Are you here to take my field?' },
+    { who: 'wren', expr: 'soft', text: 'No. Your field hasn’t ended. It’s only been forgotten. Those are different things, though few remember how.' },
+    { who: 'hoshiko', expr: 'determined', text: 'Good! Because nobody takes anything out of this field without going through me!' },
+    { who: 'wren', expr: 'stern', text: 'Then I’m afraid I will. My road goes through your rice.' },
+  ],
+};
+
+const WREN_POST: DialogueDef = {
+  id: 'wren.s1.post',
+  left: 'wren',
+  right: 'hoshiko',
+  lines: [
+    { who: 'hoshiko', expr: 'hurt', text: 'You’re strong for a nun!' },
+    { who: 'wren', expr: 'wry', text: 'Rowing builds character. And shoulders.' },
+    { who: 'hoshiko', expr: 'sad', text: 'Sister… when the field is all gone, and I’m all gone, will you carry us across?' },
+    { who: 'wren', expr: 'sad', text: 'I don’t know if I can. The forgotten don’t come to my river anymore. They go up, to the moon.' },
+    { who: 'hoshiko', expr: 'curious', text: 'Then go up there and get them back! A ferry’s no good without passengers.' },
+    { who: 'wren', expr: 'soft', text: '…That’s oddly good theology.' },
+    { who: 'wren', expr: 'tired', text: '(Hold the oar loosely. Hold the soul gently.)' },
+    { who: 'wren', expr: 'stern', text: '(Mother Cinder, I’m coming up the road.)' },
+  ],
+};
+
+const WREN_INTERLUDE: InterludeDef = {
+  title: 'Vigil · after the fields',
+  lines: [
+    'She asked if I would carry her across, when the time comes.',
+    'I told her the truth: I don’t know where the river goes anymore.',
+    'I have let go of ten thousand souls, every one of them gently.',
+    'I never once forgot a name. That was the whole point.',
+  ],
+};
+
+export interface StageStory {
+  pre: DialogueDef;
+  post: DialogueDef;
+  interlude: InterludeDef;
+}
+
+export const STAGE1_STORY: Record<CharId, StageStory> = {
+  sayo: { pre: STAGE1_PRE_BOSS, post: STAGE1_POST_BOSS, interlude: STAGE1_INTERLUDE },
+  ilse: { pre: ILSE_PRE, post: ILSE_POST, interlude: ILSE_INTERLUDE },
+  tessel: { pre: TESSEL_PRE, post: TESSEL_POST, interlude: TESSEL_INTERLUDE },
+  wren: { pre: WREN_PRE, post: WREN_POST, interlude: WREN_INTERLUDE },
+};
+
 // ─────────────────────────────── script ───────────────────────────────
 
 export function registerStage1Bursts(g: Game): void {
@@ -477,6 +629,7 @@ export function* stage1(g: Game): Task {
     yield* wait(120);
   }
 
-  yield* g.runBoss(HOSHIKO, STAGE1_PRE_BOSS, STAGE1_POST_BOSS);
+  const story = STAGE1_STORY[g.char.id];
+  yield* g.runBoss(HOSHIKO, story.pre, story.post);
   yield* g.stageClear(1);
 }

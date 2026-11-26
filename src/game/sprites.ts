@@ -32,6 +32,21 @@ export const S = {
   itemStar: 27,
   marker: 28,
   feather: 29,
+  // M2: heroines, options, shots, skills
+  ilse: 30,
+  tessel: 31,
+  wren: 32,
+  inkOrb: 33,
+  doll: 34,
+  soulOrb: 35,
+  ink: 36,
+  ray: 37,
+  arc: 38,
+  soul: 39,
+  pin: 40,
+  boat: 41,
+  itemSoul: 42,
+  reticle: 43,
 } as const;
 
 export type SpriteId = (typeof S)[keyof typeof S];

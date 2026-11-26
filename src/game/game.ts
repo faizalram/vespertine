@@ -2,9 +2,10 @@ import { Rng } from '../core/rng';
 import { Scheduler, wait, type Task } from '../core/scheduler';
 import { BULLET_TYPES } from './bulletTypes';
 import { FIELD_H, FIELD_W, SPAWN_GRACE, TAU } from './constants';
-import { IT, type Behavior, type BossDef, type DialogueDef, type DifficultyId, type EnemyDef, type StageInfo } from './defs';
+import { CHARACTERS, CharState, type CharacterDef } from './characters';
+import { IT, type Behavior, type BossDef, type CharId, type DialogueDef, type DifficultyId, type EnemyDef, type StageInfo } from './defs';
 import { C } from './palette';
-import { BF_GRAZED, BulletPool, FxPool, ItemPool, ShotPool, type BulletSpawn, type BurstEvent } from './pools';
+import { BF_GRAZED, BulletPool, FxPool, ItemPool, ShotPool, SK, type BulletSpawn, type BurstEvent } from './pools';
 import { S } from './sprites';
 
 /** One tick of player intent, already merged from keyboard, gamepad and touch. */
@@ -33,37 +34,7 @@ export type GameEvent =
   | 'graze' | 'shot' | 'death' | 'bomb' | 'declare' | 'phaseEnd' | 'gameover' | 'vigil'
   | 'bossHit' | 'enemyHit' | 'enemyDie' | 'item' | 'extend' | 'bombGet' | 'fullPower'
   | 'capture' | 'captureFail' | 'bossEnter' | 'bossDefeat' | 'bossIntro' | 'music'
-  | 'stageCard' | 'stageClear' | 'dialogueLine' | 'dialogueEnd';
-
-/** Sayo Kagari's tuning (spec §3.1). */
-export const SAYO = {
-  speed: 4.0,
-  focusSpeed: 2.0,
-  hitR: 2.5,
-  grazeR: 16,
-  bombs: 3,
-  deathbombFrames: 8,
-  vigilFrames: 300,
-  vigilRadius: 56,
-  vigilRecharge: 1 / 1200,
-  bombInvuln: 270,
-} as const;
-
-/** Emitter offsets by power level (index = number of emitters). */
-const EMITTERS_WIDE: ReadonlyArray<ReadonlyArray<readonly [number, number]>> = [
-  [],
-  [[0, -26]],
-  [[-24, 4], [24, 4]],
-  [[-26, 6], [26, 6], [0, -26]],
-  [[-26, 6], [26, 6], [-15, -14], [15, -14]],
-];
-const EMITTERS_FOCUS: ReadonlyArray<ReadonlyArray<readonly [number, number]>> = [
-  [],
-  [[0, -24]],
-  [[-10, -14], [10, -14]],
-  [[-12, -12], [12, -12], [0, -24]],
-  [[-12, -12], [12, -12], [-5, -22], [5, -22]],
-];
+  | 'stageCard' | 'stageClear' | 'dialogueLine' | 'dialogueEnd' | 'skill' | 'dollCrack';
 
 /** Point-of-collection line: above it, every item flies to the player (spec §7.3). */
 export const POC_Y = FIELD_H * 0.28;
@@ -75,7 +46,7 @@ export class Player {
   x = FIELD_W / 2;
   y = FIELD_H - 48;
   lives = 3;
-  bombs: number = SAYO.bombs;
+  bombs = 3;
   power = 1;
   invuln = 120;
   /** Frames left in the deathbomb window; -1 when not hit. */
@@ -83,18 +54,16 @@ export class Player {
   focus = false;
   focusBlend = 0;
   stillFrames = 0;
-  vigilMeter = 1;
   shotTimer = 0;
   moving = false;
   emitterCount = 1;
   readonly emitters: Array<[number, number]> = [[0, 0], [0, 0], [0, 0], [0, 0]];
-
-  get patience(): number {
-    return 1 + (Math.min(this.stillFrames, 120) / 120) * 0.2;
-  }
 }
 
+let nextEnemyId = 1;
+
 export class Enemy {
+  readonly id = nextEnemyId++;
   x = 0;
   y = 0;
   vx = 0;
@@ -109,6 +78,8 @@ export class Enemy {
   age = 0;
   flash = 0;
   alive = true;
+  /** Frames left Charted by Ilse's Survey Ray (+25% damage taken). */
+  charted = 0;
   /** Decorative/familiar: ignores shots, bombs and player contact. */
   intangible = false;
   task: Task | null = null;
@@ -137,6 +108,7 @@ export class Boss {
   flash = 0;
   /** Beaten, but still on screen for the closing dialogue. */
   defeated = false;
+  charted = 0;
 
   get hitR(): number {
     return this.def?.hitR ?? 30;
@@ -147,11 +119,6 @@ export interface BombState {
   active: boolean;
   t: number;
   r: number;
-}
-
-export interface VigilState {
-  active: boolean;
-  t: number;
   x: number;
   y: number;
 }
@@ -182,6 +149,7 @@ export interface GameOptions {
   difficulty?: DifficultyId;
   /** Debug: where the stage script should begin. */
   startAt?: 'start' | 'midboss' | 'boss';
+  char?: CharId;
 }
 
 /** Dialogue typewriter speed in characters per frame. */
@@ -201,8 +169,9 @@ export class Game {
   readonly patternSched = new Scheduler();
   readonly player = new Player();
   readonly boss = new Boss();
-  readonly bomb: BombState = { active: false, t: 0, r: 0 };
-  readonly vigil: VigilState = { active: false, t: 0, x: 0, y: 0 };
+  readonly bomb: BombState = { active: false, t: 0, r: 0, x: 0, y: 0 };
+  readonly char: CharacterDef;
+  readonly cs = new CharState();
   readonly events: GameEvent[] = [];
   score = 0;
   graze = 0;
@@ -229,7 +198,9 @@ export class Game {
     this.rng = new Rng(opts.seed ?? 20261126);
     this.diff = opts.difficulty ?? 1;
     this.startAt = opts.startAt ?? 'start';
+    this.char = CHARACTERS[opts.char ?? 'sayo'];
     this.player.lives = this.startingLives;
+    this.player.bombs = this.char.bombs;
     this.stageSched.add(script(this));
   }
 
@@ -265,8 +236,8 @@ export class Game {
     this.patternSched.tick();
     this.updateEnemies();
     this.updateBoss();
-    const v = this.vigil;
-    if (v.active) this.bullets.update(v.x, v.y, SAYO.vigilRadius, 0.5);
+    const z = this.char.slowZone?.(this);
+    if (z) this.bullets.update(z[0], z[1], z[2], z[3]);
     else this.bullets.update();
     for (const e of this.bullets.bursts) this.burstHandlers.get(e.kind)?.(this, e);
     this.updateShots();
@@ -365,7 +336,7 @@ export class Game {
     this.extendIndex = 0;
     const p = this.player;
     p.lives = this.startingLives;
-    p.bombs = SAYO.bombs;
+    p.bombs = this.char.bombs;
     p.invuln = 180;
     p.deathTimer = -1;
     p.x = FIELD_W / 2;
@@ -377,6 +348,7 @@ export class Game {
 
   private updatePlayer(inp: InputFrame): void {
     const p = this.player;
+    const ch = this.char;
     if (p.invuln > 0) p.invuln--;
 
     if (p.deathTimer >= 0) {
@@ -393,7 +365,7 @@ export class Game {
     p.focus = inp.focus;
     p.focusBlend += ((p.focus ? 1 : 0) - p.focusBlend) * 0.25;
 
-    const speed = p.focus ? SAYO.focusSpeed : SAYO.speed;
+    const speed = p.focus ? ch.focusSpeed : ch.speed;
     let dx = inp.mx;
     let dy = inp.my;
     const len = Math.hypot(dx, dy);
@@ -420,116 +392,73 @@ export class Game {
     p.y = Math.min(FIELD_H - 16, Math.max(16, p.y + dy));
     p.stillFrames = p.focus && !p.moving ? p.stillFrames + 1 : 0;
 
-    const n = Math.max(1, Math.min(4, Math.floor(p.power)));
-    p.emitterCount = n;
-    const wide = EMITTERS_WIDE[n];
-    const foc = EMITTERS_FOCUS[n];
-    for (let i = 0; i < n; i++) {
-      const b = p.focusBlend;
-      const bob = Math.sin(this.frame * 0.08 + i * 1.7) * 1.5;
-      p.emitters[i][0] = p.x + wide[i][0] + (foc[i][0] - wide[i][0]) * b;
-      p.emitters[i][1] = p.y + wide[i][1] + (foc[i][1] - wide[i][1]) * b + bob;
-    }
+    ch.layoutOptions(this);
 
     const talking = this.dialogue !== null;
     if (!talking && inp.bomb && p.bombs > 0 && !this.bomb.active) this.startBomb();
+    if (!talking && inp.skill && ch.trySkill(this)) this.events.push('skill');
+    ch.update(this);
 
-    if (!talking && inp.skill && p.vigilMeter >= 1 && !this.vigil.active) {
-      p.vigilMeter = 0;
-      Object.assign(this.vigil, { active: true, t: 0, x: p.x, y: p.y });
-      this.events.push('vigil');
-    }
-    if (this.vigil.active) {
-      if (++this.vigil.t >= SAYO.vigilFrames) this.vigil.active = false;
-    } else if (p.vigilMeter < 1) {
-      p.vigilMeter = Math.min(1, p.vigilMeter + SAYO.vigilRecharge);
-    }
-
-    if (inp.shoot && !talking) this.fireSayo();
-  }
-
-  private fireSayo(): void {
-    const p = this.player;
-    const t = p.shotTimer++;
-    if (t % 6 === 0) this.events.push('shot');
-    const n = p.emitterCount;
-    const powerScale = 0.85 + (p.power - 1) * 0.05;
-    if (p.focus) {
-      // Wick Lance: steady narrow beam; grows stronger while standing still (Patient Flame).
-      const dmg = 2.2 * p.patience * powerScale;
-      if (t % 2 === 0) {
-        this.shots.spawn(p.x - 4, p.y - 12, 0, -14, dmg, S.lance);
-        this.shots.spawn(p.x + 4, p.y - 12, 0, -14, dmg, S.lance);
-      }
-      if (t % 4 === 0) {
-        for (let i = 0; i < n; i++) {
-          const [ex, ey] = p.emitters[i];
-          this.shots.spawn(ex, ey - 6, 0, -13, 0.8 * p.patience, S.lance);
-        }
-      }
-    } else {
-      // Will-o'-Wisps: main needles plus gently homing wisps from each emitter.
-      if (t % 4 === 0) {
-        this.shots.spawn(p.x - 6, p.y - 10, 0, -12, 2.0 * powerScale, S.lance);
-        this.shots.spawn(p.x + 6, p.y - 10, 0, -12, 2.0 * powerScale, S.lance);
-      }
-      if (t % 8 === 0) {
-        for (let i = 0; i < n; i++) {
-          const [ex, ey] = p.emitters[i];
-          const side = Math.sign(ex - p.x);
-          const a = -Math.PI / 2 + side * (ey > p.y - 4 ? 0.45 : 0.18);
-          this.shots.spawn(ex, ey, Math.cos(a) * 7, Math.sin(a) * 7, 2.6, S.wisp, 1);
-        }
-      }
+    if (inp.shoot && !talking) {
+      const t = p.shotTimer++;
+      if (t % 6 === 0) this.events.push('shot');
+      ch.fire(this, t);
     }
   }
 
   private startBomb(): void {
     const p = this.player;
     p.bombs--;
-    p.invuln = Math.max(p.invuln, SAYO.bombInvuln);
-    Object.assign(this.bomb, { active: true, t: 0, r: 0 });
-    this.flash = 0.6;
-    this.shake = 6;
+    p.invuln = Math.max(p.invuln, this.char.bombInvuln);
+    Object.assign(this.bomb, { active: true, t: 0, r: 0, x: p.x, y: p.y });
     this.boss.clean = false;
     this.autoCollect = 90;
     this.events.push('bomb');
+    this.char.bombStart(this);
   }
 
   private updateBomb(): void {
-    const b = this.bomb;
-    if (!b.active) return;
-    b.t++;
-    const k = Math.min(1, b.t / 100);
-    b.r = (1 - (1 - k) * (1 - k)) * 380;
-    const p = this.player;
-    const r2 = b.r * b.r;
+    if (!this.bomb.active) return;
+    this.bomb.t++;
+    this.char.bombUpdate(this);
+  }
+
+  // ───────────────────────── helpers for characters ─────────────────────────
+
+  /** Cancel bullets in a circle. With `toItem`, half of them become that item (flying to the player). */
+  cancelBulletsInRadius(x: number, y: number, r: number, toItem = -1): number {
     const bl = this.bullets;
+    const r2 = r * r;
+    let n = 0;
     for (let i = 0; i < bl.n; i++) {
-      const dx = bl.x[i] - p.x;
-      const dy = bl.y[i] - p.y;
+      const dx = bl.x[i] - x;
+      const dy = bl.y[i] - y;
       if (dx * dx + dy * dy < r2) {
         this.cancelFx(i);
+        if (toItem >= 0 && n % 2 === 0) this.items.spawn(bl.x[i], bl.y[i], toItem, 0, 0, 2);
         this.score += 50;
         bl.remove(i);
         i--;
+        n++;
       }
     }
-    if (b.t < 140) {
-      for (const e of this.enemies) {
-        if (e.alive && !e.intangible && Math.hypot(e.x - p.x, e.y - p.y) < b.r + e.r) this.damageEnemy(e, 6);
-      }
-      const boss = this.boss;
-      if (boss.present && boss.vulnerable && Math.hypot(boss.x - p.x, boss.y - p.y) < b.r + boss.hitR) {
-        boss.hp -= 3.5;
-      }
+    return n;
+  }
+
+  /** Damage every enemy and the boss inside a circle (per call, i.e. per frame). */
+  damageInRadius(x: number, y: number, r: number, enemyDmg: number, bossDmg: number): void {
+    for (const e of this.enemies) {
+      if (e.alive && !e.intangible && Math.hypot(e.x - x, e.y - y) < r + e.r) this.damageEnemy(e, enemyDmg);
     }
-    if (b.t >= 160) b.active = false;
+    const b = this.boss;
+    if (b.present && b.vulnerable && Math.hypot(b.x - x, b.y - y) < r + b.hitR) this.damageBoss(bossDmg);
   }
 
   private collidePlayer(): void {
     const p = this.player;
+    const ch = this.char;
     if (p.deathTimer >= 0) return;
+    ch.absorbBullets?.(this);
     const bl = this.bullets;
     const px = p.x;
     const py = p.y;
@@ -539,11 +468,11 @@ export class Game {
       const dy = bl.y[i] - py;
       const d2 = dx * dx + dy * dy;
       const r = BULLET_TYPES[bl.type[i]].hitR;
-      const gr = SAYO.grazeR + r;
+      const gr = ch.grazeR + r;
       if (d2 > gr * gr) continue;
-      const hr = SAYO.hitR + r;
+      const hr = ch.hitR + r;
       if (d2 < hr * hr && p.invuln === 0) {
-        p.deathTimer = SAYO.deathbombFrames;
+        p.deathTimer = ch.deathbombFrames;
         return;
       }
       if (!(bl.flags[i] & BF_GRAZED)) {
@@ -552,22 +481,23 @@ export class Game {
         this.score += 200;
         const a = this.rng.range(0, TAU);
         this.fx.spawn(px, py, Math.cos(a) * 2.5, Math.sin(a) * 2.5, 14, S.spark, C.white, 0.45, 0.1, 0.9);
+        ch.onGraze?.(this);
         this.events.push('graze');
       }
     }
     if (p.invuln > 0) return;
     for (const e of this.enemies) {
       if (!e.alive || e.intangible) continue;
-      const rr = e.r * 0.6 + SAYO.hitR;
+      const rr = e.r * 0.6 + ch.hitR;
       if ((e.x - px) ** 2 + (e.y - py) ** 2 < rr * rr) {
-        p.deathTimer = SAYO.deathbombFrames;
+        p.deathTimer = ch.deathbombFrames;
         return;
       }
     }
     const b = this.boss;
     if (b.present && b.y > 0 && !b.defeated) {
-      const rr = b.hitR * 0.5 + SAYO.hitR;
-      if ((b.x - px) ** 2 + (b.y - py) ** 2 < rr * rr) p.deathTimer = SAYO.deathbombFrames;
+      const rr = b.hitR * 0.5 + ch.hitR;
+      if ((b.x - px) ** 2 + (b.y - py) ** 2 < rr * rr) p.deathTimer = ch.deathbombFrames;
     }
   }
 
@@ -596,7 +526,7 @@ export class Game {
       return;
     }
     p.invuln = 180;
-    p.bombs = Math.max(p.bombs, SAYO.bombs);
+    p.bombs = Math.max(p.bombs, this.char.bombs);
     p.x = FIELD_W / 2;
     p.y = FIELD_H - 48;
   }
@@ -631,6 +561,7 @@ export class Game {
       if (e.alive) {
         e.age++;
         if (e.flash > 0) e.flash--;
+        if (e.charted > 0) e.charted--;
         if (e.task && e.task.next().done) e.task = null;
         e.x += e.vx;
         e.y += e.vy;
@@ -644,11 +575,23 @@ export class Game {
     }
   }
 
+  /** All player damage to enemies goes through here (character multipliers, Charted bonus). */
   damageEnemy(e: Enemy, dmg: number): void {
     if (!e.alive) return;
-    e.hp -= dmg;
+    const d = dmg * this.char.damageMult(this) * (e.charted > 0 ? 1.25 : 1);
+    e.hp -= d;
     e.flash = 3;
+    this.char.onDamage?.(this, Math.min(d, Math.max(0, e.hp + d)));
     if (e.hp <= 0) this.killEnemy(e);
+  }
+
+  damageBoss(dmg: number): void {
+    const b = this.boss;
+    if (!b.present || !b.vulnerable) return;
+    const d = dmg * this.char.damageMult(this) * (b.charted > 0 ? 1.25 : 1);
+    b.hp -= d;
+    b.flash = 2;
+    this.char.onDamage?.(this, d);
   }
 
   private killEnemy(e: Enemy): void {
@@ -692,8 +635,9 @@ export class Game {
     const boss = this.boss;
     const bossTarget = boss.present && boss.y > 0 && !boss.defeated;
     for (let i = 0; i < s.n; i++) {
-      s.age[i]++;
-      if (s.homing[i]) {
+      const age = ++s.age[i];
+      const kind = s.kind[i];
+      if (kind === SK.homing) {
         const tg = this.nearestTarget(s.x[i], s.y[i]);
         if (tg) {
           const want = Math.atan2(tg.y - s.y[i], tg.x - s.x[i]);
@@ -710,37 +654,53 @@ export class Game {
       s.y[i] += s.vy[i];
       const x = s.x[i];
       const y = s.y[i];
-      let hit = false;
-      for (const e of this.enemies) {
-        if (!e.alive || e.intangible) continue;
-        if ((x - e.x) ** 2 + (y - e.y) ** 2 < e.r * e.r) {
-          this.damageEnemy(e, s.dmg[i]);
-          this.score += 10;
-          if (s.age[i] % 4 === 0) this.events.push('enemyHit');
-          hit = true;
-          break;
-        }
+      const maxAge = s.maxAge[i];
+      if (maxAge > 0 && age > maxAge) {
+        s.remove(i);
+        i--;
+        continue;
       }
-      if (!hit && bossTarget) {
-        const dx = x - boss.x;
-        const dy = y - boss.y;
-        if (dx * dx + dy * dy < boss.hitR * boss.hitR) {
-          if (boss.vulnerable) {
-            boss.hp -= s.dmg[i];
-            boss.flash = 2;
+      let hit = false;
+      const pierce = s.pierce[i] === 1;
+      {
+        // Oar arcs lose up to 70% of their bite over their short range.
+        const dmg = kind === SK.falloff && maxAge > 0 ? s.dmg[i] * (1 - 0.7 * Math.min(1, age / maxAge)) : s.dmg[i];
+        for (const e of this.enemies) {
+          if (!e.alive || e.intangible || (pierce && s.lastHit[i] === e.id)) continue;
+          if ((x - e.x) ** 2 + (y - e.y) ** 2 < e.r * e.r) {
+            s.lastHit[i] = e.id;
+            if (kind === SK.chart) e.charted = 180;
+            this.damageEnemy(e, dmg);
             this.score += 10;
-            if (s.age[i] % 3 === 0) this.events.push('bossHit');
+            if (age % 4 === 0) this.events.push('enemyHit');
+            hit = true;
+            break;
           }
-          hit = true;
+        }
+        if (!hit && bossTarget && !(pierce && s.lastHit[i] === 0)) {
+          const dx = x - boss.x;
+          const dy = y - boss.y;
+          if (dx * dx + dy * dy < boss.hitR * boss.hitR) {
+            s.lastHit[i] = 0; // id 0 = the boss
+            if (boss.vulnerable) {
+              if (kind === SK.chart) boss.charted = 180;
+              this.damageBoss(dmg);
+              this.score += 10;
+              if (age % 3 === 0) this.events.push('bossHit');
+            }
+            hit = true;
+          }
         }
       }
       if (hit) {
         if ((this.frame + i) % 3 === 0) {
           this.fx.spawn(x, y + 4, this.rng.range(-1.5, 1.5), this.rng.range(-3, -1), 10, S.spark, C.amber, 0.5, 0.1, 0.8);
         }
-        s.remove(i);
-        i--;
-        continue;
+        if (!pierce) {
+          s.remove(i);
+          i--;
+          continue;
+        }
       }
       if (y < -24 || y > FIELD_H + 24 || x < -24 || x > FIELD_W + 24) {
         s.remove(i);
@@ -826,6 +786,9 @@ export class Game {
         break;
       case IT.star:
         this.score += 500;
+        break;
+      case IT.soul:
+        this.score += 2000;
         break;
     }
   }
@@ -920,6 +883,7 @@ export class Game {
   private updateBoss(): void {
     const b = this.boss;
     if (b.flash > 0) b.flash--;
+    if (b.charted > 0) b.charted--;
     if (!b.present || !b.active) return;
     b.timer--;
     if ((b.vulnerable && b.hp <= 0) || b.timer <= 0) {

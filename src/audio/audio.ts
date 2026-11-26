@@ -5,11 +5,13 @@
 
 export type Sfx =
   | 'shot' | 'graze' | 'death' | 'bomb' | 'declare' | 'phaseEnd' | 'vigil' | 'bossHit' | 'select'
-  | 'enemyHit' | 'enemyDie' | 'item' | 'extend' | 'bombGet' | 'capture' | 'captureFail' | 'bossDefeat' | 'talk';
+  | 'enemyHit' | 'enemyDie' | 'item' | 'extend' | 'bombGet' | 'capture' | 'captureFail' | 'bossDefeat' | 'talk'
+  | 'pin' | 'rewind' | 'bell' | 'dollCrack';
 
 const MIN_GAP: Record<Sfx, number> = {
   shot: 0.07, graze: 0.035, death: 0.3, bomb: 0.3, declare: 0.3, phaseEnd: 0.3, vigil: 0.2, bossHit: 0.09, select: 0.05,
   enemyHit: 0.08, enemyDie: 0.05, item: 0.04, extend: 0.5, bombGet: 0.5, capture: 0.5, captureFail: 0.5, bossDefeat: 1, talk: 0.05,
+  pin: 0.1, rewind: 0.3, bell: 0.3, dollCrack: 0.2,
 };
 
 interface Song {
@@ -141,6 +143,23 @@ export class AudioEngine {
         break;
       case 'select':
         this.tone(now, 'triangle', 880, 990, 0.08, 0.1);
+        break;
+      case 'pin':
+        // A nib striking paper.
+        this.noiseHit(now, 0.05, 5000, 0.12, 'highpass');
+        this.tone(now, 'triangle', 1200, 900, 0.08, 0.08);
+        break;
+      case 'rewind':
+        // A music box wound backwards.
+        for (let k = 0; k < 6; k++) this.tone(now + k * 0.04, 'sine', 1760 - k * 160, 1700 - k * 160, 0.12, 0.06);
+        break;
+      case 'bell':
+        this.bell(now, 261.63, 0.3, 4);
+        this.bell(now + 0.01, 392, 0.12, 3);
+        break;
+      case 'dollCrack':
+        this.noiseHit(now, 0.08, 3500, 0.15, 'bandpass');
+        this.tone(now, 'square', 900, 300, 0.08, 0.04);
         break;
       case 'talk':
         this.tone(now, 'triangle', 660, 640, 0.05, 0.05);

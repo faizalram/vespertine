@@ -2,7 +2,8 @@ import * as THREE from 'three';
 import { BULLET_TYPES } from '../game/bulletTypes';
 import { FIELD_H, FIELD_W, SPAWN_GRACE } from '../game/constants';
 import { IT } from '../game/defs';
-import { SAYO, type Game } from '../game/game';
+import { pinSegments } from '../game/characters';
+import type { Game } from '../game/game';
 import { C, PALETTE } from '../game/palette';
 import { S } from '../game/sprites';
 import { buildAtlas } from './atlas';
@@ -23,6 +24,18 @@ const ITEM_SPRITE: Record<number, number> = {
   [IT.life]: S.itemLife,
   [IT.bomb]: S.itemBomb,
   [IT.star]: S.itemStar,
+  [IT.soul]: S.itemSoul,
+};
+
+/** Player shot tints by sprite: [r, g, b, alpha, additive]. */
+const SHOT_STYLE: Record<number, readonly [number, number, number, number, boolean]> = {
+  [S.lance]: [1, 0.8, 0.5, 0.55, true],
+  [S.wisp]: [1, 0.62, 0.18, 0.75, true],
+  [S.ray]: [1, 0.9, 0.45, 0.8, true],
+  [S.ink]: [0.16, 0.22, 0.55, 0.95, false],
+  [S.needle]: [1, 0.62, 0.55, 0.7, true],
+  [S.arc]: [0.75, 1, 0.95, 0.85, true],
+  [S.soul]: [0.35, 1, 0.9, 0.8, true],
 };
 
 /**
@@ -38,6 +51,7 @@ export class Renderer {
   private readonly cam: THREE.OrthographicCamera;
   private readonly back: SpriteBatch;
   private readonly shots: SpriteBatch;
+  private readonly shotsN: SpriteBatch;
   private readonly actors: SpriteBatch;
   private readonly items: SpriteBatch;
   private readonly bullets: SpriteBatch;
@@ -73,12 +87,13 @@ export class Renderer {
     const r = atlas.regions;
     this.back = new SpriteBatch(8, tex, r, false, -1);
     this.shots = new SpriteBatch(1024, tex, r, true, 0);
+    this.shotsN = new SpriteBatch(512, tex, r, false, 0.5);
     this.actors = new SpriteBatch(160, tex, r, false, 1);
     this.items = new SpriteBatch(1024, tex, r, false, 2);
     this.bullets = new SpriteBatch(4096, tex, r, false, 3);
     this.fx = new SpriteBatch(3200, tex, r, true, 4);
     this.top = new SpriteBatch(16, tex, r, false, 5);
-    this.all = [this.back, this.shots, this.actors, this.items, this.bullets, this.fx, this.top];
+    this.all = [this.back, this.shots, this.shotsN, this.actors, this.items, this.bullets, this.fx, this.top];
     for (const b of this.all) this.scene.add(b.mesh);
   }
 
@@ -131,7 +146,7 @@ export class Renderer {
   }
 
   private fill(g: Game): void {
-    const { back, shots, actors, items, bullets, fx, top } = this;
+    const { back, shots, shotsN, actors, items, bullets, fx, top } = this;
     for (const b of this.all) b.begin();
     const p = g.player;
     const f = g.frame;
@@ -147,22 +162,53 @@ export class Renderer {
     // Dialogue: dim the field a little so the text reads.
     if (g.dialogue) back.push(S.white, FIELD_W / 2, FIELD_H / 2, 0, 1, 0.05, 0.03, 0.08, 0.3, FIELD_W, FIELD_H);
 
-    // Vigil ward.
-    const v = g.vigil;
+    const ch = g.char;
+    const cs = g.cs;
+
+    // Sayo: Vigil ward.
+    const v = cs.vigil;
     if (v.active) {
-      const k = v.t / SAYO.vigilFrames;
+      const k = v.t / 300;
       const appear = Math.min(1, v.t / 12);
       const fade = k > 0.85 ? (1 - k) / 0.15 : 1;
       const [r, gg, b] = PALETTE[C.amber];
-      shots.push(S.ward, v.x, v.y, f * 0.01, (SAYO.vigilRadius * 2 * (0.6 + 0.4 * appear)) / 64, r, gg, b, 0.85 * fade);
+      shots.push(S.ward, v.x, v.y, f * 0.01, (56 * 2 * (0.6 + 0.4 * appear)) / 64, r, gg, b, 0.85 * fade);
+    }
+
+    // Ilse: survey pins and the ink lines between them.
+    if (cs.pins.length) {
+      for (const [ax, ay, bx, by] of pinSegments(g)) {
+        const len = Math.hypot(bx - ax, by - ay);
+        const rot = Math.atan2(by - ay, bx - ax);
+        const pulse = 0.55 + 0.25 * Math.sin(f * 0.15);
+        shotsN.push(S.white, (ax + bx) / 2, (ay + by) / 2, rot, 1, 0.1, 0.13, 0.3, 0.85, len, 3);
+        shots.push(S.white, (ax + bx) / 2, (ay + by) / 2, rot, 1, 1, 0.8, 0.35, pulse, len, 1.5);
+      }
+      for (const pin of cs.pins) {
+        const fade = pin.age > 840 ? (900 - pin.age) / 60 : 1;
+        shotsN.push(S.pin, pin.x, pin.y - 6, 0, 1, 1, 1, 1, fade);
+      }
+    }
+
+    // Wren: Requiem aura and the bell's ring.
+    if (cs.requiem > 0) {
+      const a = Math.min(1, cs.requiem / 40) * (0.35 + 0.15 * Math.sin(f * 0.2));
+      shots.push(S.wisp, p.x, p.y, 0, 3.4, 0.3, 1, 0.85, a);
+    }
+    if (cs.bell.t > 0) {
+      const k = 1 - cs.bell.t / 40;
+      shots.push(S.ring, cs.bell.x, cs.bell.y, 0, ((96 * 2) / 128) * (0.3 + 0.7 * k), 0.4, 1, 0.9, 1 - k);
     }
 
     // Player shots.
     const s = g.shots;
-    const amb = PALETTE[C.amber];
     for (let i = 0; i < s.n; i++) {
-      if (s.sprite[i] === S.wisp) shots.push(S.wisp, s.x[i], s.y[i], 0, 1, amb[0], amb[1], amb[2], 0.75);
-      else shots.push(S.lance, s.x[i], s.y[i], Math.atan2(s.vy[i], s.vx[i]) + Math.PI / 2, 1, 1, 0.8, 0.5, 0.55);
+      const sp = s.sprite[i];
+      const st = SHOT_STYLE[sp] ?? SHOT_STYLE[S.lance];
+      const rot = sp === S.wisp || sp === S.soul ? 0 : Math.atan2(s.vy[i], s.vx[i]) + Math.PI / 2;
+      let a = st[3];
+      if (s.maxAge[i] > 0) a *= 1 - s.age[i] / (s.maxAge[i] + 1);
+      (st[4] ? shots : shotsN).push(sp, s.x[i], s.y[i], rot, 1, st[0], st[1], st[2], a);
     }
 
     // Enemies.
@@ -172,6 +218,7 @@ export class Renderer {
       const lit = e.flash > 0 ? 1.6 : 1;
       const sc = e.intangible ? 0.8 : 1;
       actors.push(e.sprite, e.x, e.y, rot, sc, lit, lit, lit, 1);
+      if (e.charted > 0) fx.push(S.reticle, e.x, e.y, f * 0.05, (e.r * 2.4) / 16, 1, 0.85, 0.35, Math.min(1, e.charted / 30) * 0.8);
     }
 
     // Boss.
@@ -181,14 +228,30 @@ export class Renderer {
       const a = boss.defeated ? 0.75 : 1;
       actors.push(boss.def.sprite, boss.x, boss.y + bob, Math.sin(f * 0.03) * 0.04, 1, lit, lit, lit, a);
       if (boss.y > 0) top.push(S.marker, boss.x, FIELD_H - 5, 0, 1, 1, 1, 1, 0.9);
+      if (boss.charted > 0) fx.push(S.reticle, boss.x, boss.y, f * 0.04, 4.2, 1, 0.85, 0.35, Math.min(1, boss.charted / 30) * 0.7);
     }
 
     // Player and emitters.
+    if (cs.afterimage.t > 0) {
+      actors.push(ch.sprite, cs.afterimage.x, cs.afterimage.y, 0, 1, 0.6, 0.9, 1, (cs.afterimage.t / 40) * 0.45);
+    }
     if (!g.over) {
       const blink = p.invuln > 0 && Math.floor(f / 3) % 2 === 0;
       const alpha = blink ? 0.35 : 1;
-      actors.push(S.sayo, p.x, p.y, 0, 1, 1, 1, 1, alpha);
-      for (let i = 0; i < p.emitterCount; i++) actors.push(S.emitter, p.emitters[i][0], p.emitters[i][1], 0, 1, 1, 1, 1, alpha);
+      actors.push(ch.sprite, p.x, p.y, 0, 1, 1, 1, 1, alpha);
+      if (ch.id === 'tessel') {
+        for (const d of cs.dolls) {
+          const cracked = d.crack > 0;
+          const shake = !cracked && d.absorbed > 3 ? Math.sin(f * 1.3) * 0.15 : 0;
+          actors.push(S.doll, d.x, d.y, shake, 1, cracked ? 0.5 : 1, cracked ? 0.5 : 1, cracked ? 0.55 : 1, (cracked ? 0.45 : 1) * alpha);
+        }
+      } else {
+        for (let i = 0; i < p.emitterCount; i++) actors.push(ch.optionSprite, p.emitters[i][0], p.emitters[i][1], 0, 1, 1, 1, 1, alpha);
+      }
+    }
+    // Litany parts: Tessel's spare dolls.
+    if (g.bomb.active && ch.id === 'tessel') {
+      for (const o of cs.bombObjs) if (o.alive) actors.push(S.doll, o.x, o.y, f * 0.2, 1.1, 1, 0.9, 0.9, 1);
     }
 
     // Items (under bullets so bullets always stay readable).
@@ -225,7 +288,10 @@ export class Renderer {
       fx.push(e.sprite[i], e.x[i], e.y[i], e.rot[i], sc, col[0], col[1], col[2], e.a0[i] * (1 - k));
     }
     const bomb = g.bomb;
-    if (bomb.active) {
+    if (bomb.active && ch.id === 'wren') {
+      fx.push(S.boat, bomb.x, bomb.y, Math.sin(f * 0.05) * 0.05, 1, 1, 1, 1, 0.9);
+    }
+    if (bomb.active && ch.id === 'sayo') {
       const a = bomb.t < 120 ? 1 : 1 - (bomb.t - 120) / 40;
       const [r, gg, b] = PALETTE[C.amber];
       fx.push(S.ring, p.x, p.y, 0, (bomb.r * 2) / 128, r, gg, b, a);

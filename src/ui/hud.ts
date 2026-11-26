@@ -176,7 +176,10 @@ export class Hud {
     this.set('power', p.power >= 4 ? 'MAX' : p.power.toFixed(2));
     this.set('pointValue', g.pointValue.toLocaleString('en-US'));
     this.set('graze', String(g.graze));
-    this.bar('vigil', g.vigil.active ? 1 - g.vigil.t / 300 : p.vigilMeter, true);
+    this.bar('vigil', g.char.meter(g), true);
+    this.set('meterLabel', g.char.meterLabel);
+    this.set('skillName', g.char.skillName);
+    this.set('skillShort', g.char.meterLabel === 'Toll' ? 'Bell' : g.char.meterLabel === 'Gear' ? 'Rewind' : g.char.meterLabel);
 
     const b = g.boss;
     const showBoss = b.present && b.phase >= 0 && !b.defeated && !g.dialogue;

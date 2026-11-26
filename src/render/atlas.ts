@@ -641,6 +641,324 @@ const drawMarker: Draw = (c, w, h) => {
   c.fill();
 };
 
+
+/** Ilse Marrow: ink-blue coat, gold trim, short dark bob, rides a great drafting compass. */
+const drawIlse: Draw = (c, w, h) => {
+  const cx = w / 2;
+  // Compass legs behind her like a broom.
+  c.strokeStyle = '#c9a24a';
+  c.lineWidth = 3;
+  c.beginPath();
+  c.moveTo(cx - 30, h * 0.98);
+  c.lineTo(cx + 4, h * 0.5);
+  c.lineTo(cx + 34, h * 0.98);
+  c.stroke();
+  ellipse(c, cx + 4, h * 0.5, 4, 4, '#ffd36a');
+  // Coat.
+  c.fillStyle = '#1c2446';
+  c.beginPath();
+  c.moveTo(cx - 12, h * 0.38);
+  c.lineTo(cx + 12, h * 0.38);
+  c.lineTo(cx + 22, h * 0.9);
+  c.lineTo(cx + 6, h * 0.86);
+  c.lineTo(cx, h * 0.92);
+  c.lineTo(cx - 6, h * 0.86);
+  c.lineTo(cx - 22, h * 0.9);
+  c.closePath();
+  c.fill();
+  c.fillStyle = '#e0b04a';
+  c.fillRect(cx - 1.5, h * 0.4, 3, h * 0.45);
+  c.fillRect(cx - 14, h * 0.58, 28, 3);
+  // Rolled map under one arm.
+  c.fillStyle = '#efe4c8';
+  c.save();
+  c.translate(cx - 22, h * 0.56);
+  c.rotate(-0.5);
+  c.fillRect(-4, -13, 8, 26);
+  c.restore();
+  // Hair and face.
+  c.fillStyle = '#18203c';
+  c.beginPath();
+  c.ellipse(cx, h * 0.25, 15, 15, 0, 0, Math.PI * 2);
+  c.fill();
+  c.fillRect(cx - 15, h * 0.25, 30, h * 0.11);
+  c.fillStyle = '#f2d8c4';
+  c.beginPath();
+  c.ellipse(cx, h * 0.28, 10, 11, 0, 0, Math.PI * 2);
+  c.fill();
+  c.fillStyle = '#18203c';
+  c.beginPath();
+  c.moveTo(cx - 12, h * 0.25);
+  c.lineTo(cx - 4, h * 0.2);
+  c.lineTo(cx + 2, h * 0.24);
+  c.lineTo(cx + 12, h * 0.19);
+  c.lineTo(cx + 12, h * 0.14);
+  c.lineTo(cx - 12, h * 0.15);
+  c.closePath();
+  c.fill();
+  // Goggles pushed up on the forehead.
+  ellipse(c, cx - 5, h * 0.165, 4, 3, '#ffd36a');
+  ellipse(c, cx + 5, h * 0.165, 4, 3, '#ffd36a');
+  c.fillStyle = '#18203c';
+  c.fillRect(cx - 6, h * 0.29, 3, 2);
+  c.fillRect(cx + 3, h * 0.29, 3, 2);
+};
+
+/** Tessel: porcelain doll, mismatched eyes, rust dress, visible joint seams. */
+const drawTessel: Draw = (c, w, h) => {
+  const cx = w / 2;
+  // Dress.
+  c.fillStyle = '#8a3b2a';
+  c.beginPath();
+  c.moveTo(cx - 10, h * 0.4);
+  c.lineTo(cx + 10, h * 0.4);
+  c.lineTo(cx + 26, h * 0.9);
+  c.lineTo(cx - 26, h * 0.9);
+  c.closePath();
+  c.fill();
+  c.fillStyle = '#f2ece4';
+  c.beginPath();
+  c.moveTo(cx - 26, h * 0.9);
+  c.quadraticCurveTo(cx, h * 0.97, cx + 26, h * 0.9);
+  c.lineTo(cx + 24, h * 0.86);
+  c.quadraticCurveTo(cx, h * 0.92, cx - 24, h * 0.86);
+  c.closePath();
+  c.fill();
+  // Porcelain arms with joint seams.
+  c.strokeStyle = '#efe8e0';
+  c.lineWidth = 5;
+  c.lineCap = 'round';
+  c.beginPath();
+  c.moveTo(cx - 10, h * 0.44);
+  c.lineTo(cx - 20, h * 0.62);
+  c.moveTo(cx + 10, h * 0.44);
+  c.lineTo(cx + 20, h * 0.62);
+  c.stroke();
+  ellipse(c, cx - 15, h * 0.53, 2, 2, '#9a8a80');
+  ellipse(c, cx + 15, h * 0.53, 2, 2, '#9a8a80');
+  // Head: pale porcelain, ash-brown ringlets, a big rust bow.
+  c.fillStyle = '#5a4038';
+  c.beginPath();
+  c.ellipse(cx, h * 0.26, 16, 16, 0, 0, Math.PI * 2);
+  c.fill();
+  for (const s of [-1, 1]) {
+    c.beginPath();
+    c.ellipse(cx + s * 13, h * 0.36, 4, 9, 0, 0, Math.PI * 2);
+    c.fill();
+  }
+  c.fillStyle = '#f6f0ea';
+  c.beginPath();
+  c.ellipse(cx, h * 0.29, 10, 11, 0, 0, Math.PI * 2);
+  c.fill();
+  c.strokeStyle = 'rgba(120,100,100,0.6)';
+  c.lineWidth = 0.8;
+  c.beginPath();
+  c.moveTo(cx + 4, h * 0.21);
+  c.lineTo(cx + 2, h * 0.27);
+  c.lineTo(cx + 6, h * 0.31);
+  c.stroke();
+  ellipse(c, cx - 4.5, h * 0.29, 2.6, 2.6, '#3a8ae0'); // glass eye
+  ellipse(c, cx + 4.5, h * 0.29, 2.6, 2.6, '#e0a040'); // amber eye
+  c.fillStyle = '#b04848';
+  c.beginPath();
+  c.moveTo(cx, h * 0.12);
+  c.lineTo(cx - 12, h * 0.07);
+  c.lineTo(cx - 10, h * 0.16);
+  c.closePath();
+  c.moveTo(cx, h * 0.12);
+  c.lineTo(cx + 12, h * 0.07);
+  c.lineTo(cx + 10, h * 0.16);
+  c.closePath();
+  c.fill();
+};
+
+/** Sister Wren: bone-white habit with teal trim, a bell at her waist, a long oar-scythe. */
+const drawWren: Draw = (c, w, h) => {
+  const cx = w / 2;
+  // Oar-scythe behind.
+  c.strokeStyle = '#4a3a30';
+  c.lineWidth = 3;
+  c.beginPath();
+  c.moveTo(cx - 30, h * 0.98);
+  c.lineTo(cx - 30, h * 0.12);
+  c.stroke();
+  c.fillStyle = '#9ad8d0';
+  c.beginPath();
+  c.moveTo(cx - 30, h * 0.12);
+  c.quadraticCurveTo(cx - 6, h * 0.04, cx + 6, h * 0.18);
+  c.quadraticCurveTo(cx - 12, h * 0.12, cx - 30, h * 0.2);
+  c.closePath();
+  c.fill();
+  // Habit.
+  c.fillStyle = '#e8e2d6';
+  c.beginPath();
+  c.moveTo(cx - 13, h * 0.36);
+  c.lineTo(cx + 13, h * 0.36);
+  c.lineTo(cx + 25, h * 0.95);
+  c.lineTo(cx - 25, h * 0.95);
+  c.closePath();
+  c.fill();
+  c.fillStyle = '#2aa89a';
+  c.fillRect(cx - 25, h * 0.91, 50, h * 0.04);
+  c.fillRect(cx - 2, h * 0.4, 4, h * 0.5);
+  // Bell.
+  c.fillStyle = '#c9a24a';
+  c.beginPath();
+  c.moveTo(cx + 10, h * 0.56);
+  c.quadraticCurveTo(cx + 16, h * 0.56, cx + 17, h * 0.66);
+  c.lineTo(cx + 3, h * 0.66);
+  c.quadraticCurveTo(cx + 4, h * 0.56, cx + 10, h * 0.56);
+  c.fill();
+  // Veil and face.
+  c.fillStyle = '#1e2a30';
+  c.beginPath();
+  c.moveTo(cx - 17, h * 0.42);
+  c.quadraticCurveTo(cx - 18, h * 0.12, cx, h * 0.12);
+  c.quadraticCurveTo(cx + 18, h * 0.12, cx + 17, h * 0.42);
+  c.closePath();
+  c.fill();
+  c.fillStyle = '#e8e2d6';
+  c.fillRect(cx - 13, h * 0.17, 26, 3);
+  c.fillStyle = '#efdccb';
+  c.beginPath();
+  c.ellipse(cx, h * 0.28, 9.5, 11, 0, 0, Math.PI * 2);
+  c.fill();
+  c.strokeStyle = '#2a2020';
+  c.lineWidth = 1.4;
+  c.beginPath();
+  c.moveTo(cx - 7, h * 0.285);
+  c.quadraticCurveTo(cx - 4.5, h * 0.3, cx - 2, h * 0.285);
+  c.moveTo(cx + 2, h * 0.285);
+  c.quadraticCurveTo(cx + 4.5, h * 0.3, cx + 7, h * 0.285);
+  c.stroke();
+};
+
+const drawInkOrb: Draw = (c, w) => {
+  const r = w / 2;
+  c.fillStyle = radial(c, r, r, 0, r, [[0, '#ffe7a0'], [0.3, '#e0b04a'], [0.55, '#1c2446'], [1, 'rgba(28,36,70,0)']]);
+  c.fillRect(0, 0, w, w);
+};
+
+const drawDoll: Draw = (c, w, h) => {
+  const cx = w / 2;
+  c.fillStyle = '#8a3b2a';
+  c.beginPath();
+  c.moveTo(cx - 4, h * 0.45);
+  c.lineTo(cx + 4, h * 0.45);
+  c.lineTo(cx + 10, h * 0.95);
+  c.lineTo(cx - 10, h * 0.95);
+  c.closePath();
+  c.fill();
+  ellipse(c, cx, h * 0.3, 8, 8, '#5a4038');
+  ellipse(c, cx, h * 0.33, 6, 6.5, '#f6f0ea');
+  ellipse(c, cx - 2.3, h * 0.33, 1.3, 1.3, '#3a8ae0');
+  ellipse(c, cx + 2.3, h * 0.33, 1.3, 1.3, '#e0a040');
+};
+
+const drawSoulOrb: Draw = (c, w) => {
+  const r = w / 2;
+  c.fillStyle = radial(c, r, r, 0, r, [[0, '#f0fffc'], [0.3, '#7ee8d8'], [0.6, 'rgba(42,168,154,0.4)'], [1, 'rgba(42,168,154,0)']]);
+  c.fillRect(0, 0, w, w);
+};
+
+/** Ink line: long drop with a gold core (tinted). */
+const drawInk: Draw = (c, w, h) => {
+  ellipse(c, w / 2, h / 2, w / 2 - 0.5, h / 2 - 0.5, 'rgba(0,0,0,0.6)');
+  ellipse(c, w / 2, h / 2, w / 2 - 1.5, h / 2 - 2, BODY);
+  ellipse(c, w / 2, h * 0.42, w * 0.12, h * 0.3, CORE);
+};
+
+const drawRay: Draw = (c, w, h) => {
+  const g = c.createLinearGradient(0, 0, w, 0);
+  g.addColorStop(0, 'rgba(255,0,0,0)');
+  g.addColorStop(0.35, 'rgba(255,128,0,0.9)');
+  g.addColorStop(0.5, 'rgba(255,255,0,1)');
+  g.addColorStop(0.65, 'rgba(255,128,0,0.9)');
+  g.addColorStop(1, 'rgba(255,0,0,0)');
+  c.fillStyle = g;
+  c.fillRect(0, 0, w, h);
+};
+
+const drawArc: Draw = (c, w, h) => {
+  c.fillStyle = radial(c, w / 2, h * 1.1, h * 0.55, h * 1.1, [[0, 'rgba(255,0,0,0)'], [0.45, 'rgba(255,200,0,0.95)'], [0.7, 'rgba(255,90,0,0.6)'], [1, 'rgba(255,0,0,0)']]);
+  c.beginPath();
+  c.moveTo(0, h);
+  c.quadraticCurveTo(w / 2, -h * 0.4, w, h);
+  c.quadraticCurveTo(w / 2, h * 0.3, 0, h);
+  c.fill();
+};
+
+const drawPin: Draw = (c, w, h) => {
+  c.strokeStyle = '#3a3020';
+  c.lineWidth = 2;
+  c.beginPath();
+  c.moveTo(w / 2, h * 0.35);
+  c.lineTo(w / 2, h);
+  c.stroke();
+  ellipse(c, w / 2, h * 0.25, w / 2 - 1, w / 2 - 1, '#1c2446');
+  ellipse(c, w / 2, h * 0.25, w / 2 - 3, w / 2 - 3, '#ffd36a');
+};
+
+const drawBoat: Draw = (c, w, h) => {
+  c.fillStyle = radial(c, w / 2, h * 0.6, 10, w * 0.55, [[0, 'rgba(120,240,225,0.35)'], [1, 'rgba(60,180,170,0)']]);
+  c.fillRect(0, 0, w, h);
+  // Hull.
+  c.fillStyle = 'rgba(160,250,240,0.75)';
+  c.beginPath();
+  c.moveTo(w * 0.04, h * 0.58);
+  c.quadraticCurveTo(w * 0.5, h * 1.02, w * 0.96, h * 0.58);
+  c.lineTo(w * 0.86, h * 0.64);
+  c.quadraticCurveTo(w * 0.5, h * 0.84, w * 0.14, h * 0.64);
+  c.closePath();
+  c.fill();
+  // Mast and a tattered sail.
+  c.strokeStyle = 'rgba(200,255,250,0.8)';
+  c.lineWidth = 3;
+  c.beginPath();
+  c.moveTo(w * 0.5, h * 0.7);
+  c.lineTo(w * 0.5, h * 0.06);
+  c.stroke();
+  c.fillStyle = 'rgba(220,255,252,0.45)';
+  c.beginPath();
+  c.moveTo(w * 0.52, h * 0.1);
+  c.quadraticCurveTo(w * 0.72, h * 0.3, w * 0.7, h * 0.56);
+  c.lineTo(w * 0.62, h * 0.5);
+  c.lineTo(w * 0.58, h * 0.56);
+  c.lineTo(w * 0.52, h * 0.52);
+  c.closePath();
+  c.fill();
+  // A lantern at the prow.
+  c.fillStyle = radial(c, w * 0.12, h * 0.48, 0, 16, [[0, '#ffffff'], [0.4, 'rgba(160,255,240,0.8)'], [1, 'rgba(100,220,210,0)']]);
+  c.fillRect(w * 0.12 - 16, h * 0.48 - 16, 32, 32);
+};
+
+const drawItemSoul: Draw = (c, w, h) => {
+  const cx = w / 2;
+  c.fillStyle = radial(c, cx, h * 0.6, 0, w / 2, [[0, '#f0fffc'], [0.45, '#5fe0cc'], [1, 'rgba(42,168,154,0)']]);
+  c.beginPath();
+  c.moveTo(cx, 0);
+  c.quadraticCurveTo(w, h * 0.6, cx, h);
+  c.quadraticCurveTo(0, h * 0.6, cx, 0);
+  c.fill();
+};
+
+const drawReticle: Draw = (c, w) => {
+  const r = w / 2;
+  c.strokeStyle = 'rgba(255,255,0,1)';
+  c.lineWidth = 2;
+  c.beginPath();
+  c.arc(r, r, r - 3, 0, Math.PI * 2);
+  c.stroke();
+  c.lineWidth = 2.5;
+  for (let i = 0; i < 4; i++) {
+    const a = (i / 4) * Math.PI * 2;
+    c.beginPath();
+    c.moveTo(r + Math.cos(a) * (r - 8), r + Math.sin(a) * (r - 8));
+    c.lineTo(r + Math.cos(a) * r, r + Math.sin(a) * r);
+    c.stroke();
+  }
+};
+
 const DEFS: Def[] = [
   { id: S.orb, w: 32, h: 32, mode: MODE_TINT, draw: drawOrb },
   { id: S.rice, w: 18, h: 34, mode: MODE_TINT, draw: drawRice },
@@ -672,6 +990,20 @@ const DEFS: Def[] = [
   { id: S.itemBomb, w: 24, h: 34, mode: MODE_RAW, draw: drawItemBomb },
   { id: S.itemStar, w: 18, h: 18, mode: MODE_RAW, draw: drawItemStar },
   { id: S.marker, w: 16, h: 12, mode: MODE_RAW, draw: drawMarker },
+  { id: S.ilse, w: 96, h: 112, mode: MODE_RAW, draw: drawIlse },
+  { id: S.tessel, w: 96, h: 112, mode: MODE_RAW, draw: drawTessel },
+  { id: S.wren, w: 96, h: 112, mode: MODE_RAW, draw: drawWren },
+  { id: S.inkOrb, w: 24, h: 24, mode: MODE_RAW, draw: drawInkOrb },
+  { id: S.doll, w: 28, h: 32, mode: MODE_RAW, draw: drawDoll },
+  { id: S.soulOrb, w: 24, h: 24, mode: MODE_RAW, draw: drawSoulOrb },
+  { id: S.ink, w: 10, h: 40, mode: MODE_TINT, draw: drawInk },
+  { id: S.ray, w: 8, h: 44, mode: MODE_TINT, draw: drawRay },
+  { id: S.arc, w: 44, h: 22, mode: MODE_TINT, draw: drawArc },
+  { id: S.soul, w: 24, h: 24, mode: MODE_TINT, draw: drawWisp },
+  { id: S.pin, w: 16, h: 28, mode: MODE_RAW, draw: drawPin },
+  { id: S.boat, w: 240, h: 132, mode: MODE_RAW, draw: drawBoat },
+  { id: S.itemSoul, w: 22, h: 28, mode: MODE_RAW, draw: drawItemSoul },
+  { id: S.reticle, w: 32, h: 32, mode: MODE_TINT, draw: drawReticle },
 ];
 
 export interface Atlas {

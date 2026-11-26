@@ -148,6 +148,16 @@ export class BulletPool {
   }
 }
 
+/** Shot behaviours. */
+export const SK = {
+  plain: 0,
+  homing: 1,
+  /** Survey Ray: marks targets as Charted. */
+  chart: 2,
+  /** Oar Sweep: damage falls off with distance travelled. */
+  falloff: 3,
+} as const;
+
 /** Player shots. */
 export class ShotPool {
   readonly cap: number;
@@ -158,7 +168,12 @@ export class ShotPool {
   readonly vy: Float32Array;
   readonly dmg: Float32Array;
   readonly sprite: Uint8Array;
-  readonly homing: Uint8Array;
+  readonly kind: Uint8Array;
+  /** Piercing shots keep flying after a hit; `lastHit` stops them hitting the same target twice. */
+  readonly pierce: Uint8Array;
+  readonly lastHit: Int32Array;
+  /** Frames before the shot fades out; 0 = until off-screen. */
+  readonly maxAge: Int16Array;
   readonly age: Int32Array;
 
   constructor(cap: number) {
@@ -169,11 +184,14 @@ export class ShotPool {
     this.vy = new Float32Array(cap);
     this.dmg = new Float32Array(cap);
     this.sprite = new Uint8Array(cap);
-    this.homing = new Uint8Array(cap);
+    this.kind = new Uint8Array(cap);
+    this.pierce = new Uint8Array(cap);
+    this.lastHit = new Int32Array(cap);
+    this.maxAge = new Int16Array(cap);
     this.age = new Int32Array(cap);
   }
 
-  spawn(x: number, y: number, vx: number, vy: number, dmg: number, sprite: number, homing = 0): void {
+  spawn(x: number, y: number, vx: number, vy: number, dmg: number, sprite: number, kind = 0, pierce = 0, maxAge = 0): void {
     if (this.n >= this.cap) return;
     const i = this.n++;
     this.x[i] = x;
@@ -182,7 +200,10 @@ export class ShotPool {
     this.vy[i] = vy;
     this.dmg[i] = dmg;
     this.sprite[i] = sprite;
-    this.homing[i] = homing;
+    this.kind[i] = kind;
+    this.pierce[i] = pierce;
+    this.lastHit[i] = -1;
+    this.maxAge[i] = maxAge;
     this.age[i] = 0;
   }
 
@@ -195,7 +216,10 @@ export class ShotPool {
     this.vy[i] = this.vy[j];
     this.dmg[i] = this.dmg[j];
     this.sprite[i] = this.sprite[j];
-    this.homing[i] = this.homing[j];
+    this.kind[i] = this.kind[j];
+    this.pierce[i] = this.pierce[j];
+    this.lastHit[i] = this.lastHit[j];
+    this.maxAge[i] = this.maxAge[j];
     this.age[i] = this.age[j];
   }
 

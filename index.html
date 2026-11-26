@@ -32,10 +32,10 @@
           <dt>Point</dt><dd data-k="pointValue">10,000</dd>
           <dt>Graze</dt><dd data-k="graze">0</dd>
         </dl>
-        <div class="meter"><span>Vigil</span><div class="bar"><i data-k="vigil"></i></div></div>
+        <div class="meter"><span data-k="meterLabel">Vigil</span><div class="bar"><i data-k="vigil"></i></div></div>
         <p class="keys">
           Arrows move · <b>Z</b> shoot / talk · <b>Shift</b> focus<br />
-          <b>X</b> Litany · <b>C</b> Vigil · <b>Esc</b> pause<br />
+          <b>X</b> Litany · <b>C</b> <span data-k="skillName">Vigil</span> · <b>Esc</b> pause<br />
           <b>Ctrl</b> skip dialogue · <b>M</b> mute · <b>`</b> stats
         </p>
       </section>
@@ -51,10 +51,10 @@
 
       <!-- Portrait thumb zone -->
       <section id="controls" class="hud">
-        <div class="meter"><span>Vigil</span><div class="bar"><i data-k="vigil"></i></div><span class="graze">Graze <b data-k="graze">0</b></span></div>
+        <div class="meter"><span data-k="meterLabel">Vigil</span><div class="bar"><i data-k="vigil"></i></div><span class="graze">Graze <b data-k="graze">0</b></span></div>
         <div class="buttons">
           <button id="btn-focus" class="ctl">Focus</button>
-          <button id="btn-skill" class="ctl">Vigil</button>
+          <button id="btn-skill" class="ctl" data-k="skillShort">Vigil</button>
           <button id="btn-bomb" class="ctl">Litany</button>
         </div>
         <p class="hint">Drag anywhere to move · tap to talk · second finger focuses</p>
@@ -85,12 +85,31 @@
       <!-- Screens -->
       <section id="title" class="screen show">
         <div class="title-inner">
-          <p class="eyebrow">M1 · Stage 1 vertical slice</p>
+          <p class="eyebrow">M2 · Four who remember</p>
           <h1>Vespertine</h1>
           <p class="sub">Elegy of the Unremembered</p>
           <blockquote>In the hundredth year of the Long Dusk,<br />the sun still has not set.</blockquote>
           <p class="start">Tap or press Z to begin</p>
-          <p class="who">Sayo Kagari · Keeper of the Last Lantern</p>
+          <p class="who">Story Mode · Stage 1</p>
+        </div>
+      </section>
+
+      <section id="select" class="screen">
+        <div class="select-inner">
+          <h2>Who still remembers?</h2>
+          <div class="cards"></div>
+          <div class="detail">
+            <p class="d-title"></p>
+            <h3 class="d-name"></h3>
+            <p class="d-quote"></p>
+            <p class="d-stance"></p>
+            <p class="d-play"></p>
+            <p class="d-meta"></p>
+          </div>
+          <div class="select-actions">
+            <button data-act="choose" class="primary">Begin</button>
+            <button data-act="back" class="quiet">Back</button>
+          </div>
         </div>
       </section>
 
@@ -101,7 +120,7 @@
           <button data-diff="1"><b>Dusk</b><span>The intended experience.</span></button>
           <button data-diff="2"><b>Midnight</b><span>Denser, faster, less forgiving.</span></button>
           <button data-diff="3" disabled><b>Requiem</b><span>Unlocked after a good ending.</span></button>
-          <button data-act="back" class="quiet">Back</button>
+          <button data-act="toSelect" class="quiet">Back</button>
         </div>
       </section>
 

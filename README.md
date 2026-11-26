@@ -2,11 +2,16 @@
 
 A melancholic 2.5D bullet-hell shooter for desktop and mobile browsers. Design: [`SPEC.md`](SPEC.md).
 
-**Current milestone: M1, the Stage 1 vertical slice.** Sayo Kagari plays *Fields of Unharvested Names* from start to finish:
-- enemy waves and the Crow Matron midboss
-- Hoshiko Aze with 5 phases (3 Elegies), plus pre- and post-fight dialogue
-- items and power, Elegy captures, extra lives, continues
-- difficulty select, the stage clear screen and Sayo's first Vigil interlude
+**Current milestone: M2, four who remember.** Stage 1, *Fields of Unharvested Names*, is playable with all four heroines, each with her own mechanics, dialogue and Vigil interlude:
+
+| Heroine | Shot | Skill (C) | Litany (X) |
+|---|---|---|---|
+| Sayo Kagari | homing wisps / Wick Lance | Vigil: a ward that slows bullets | expanding ring of light |
+| Ilse Marrow | piercing ink / Survey Ray (marks targets for +25% damage) | Survey Pins: up to 3 pins whose ink lines cut enemies | Blank Margins: erases the page |
+| Tessel | doll needles; focused, the dolls stand guard and eat bullets | Rewind: back to where she was 1.5 s ago (fills by dealing damage) | Spare Parts: a burst of exploding dolls |
+| Sister Wren | short-range oar (stronger up close) / soul lanterns | Ring the Bell: bullets nearby become souls, then +50% damage (fills by grazing) | the Ferry: a ghost boat sails up the screen |
+
+Also in Stage 1: enemy waves, the Crow Matron midboss, Hoshiko Aze (5 phases, 3 Elegies), items and power, Elegy captures, continues, and the difficulty, stage clear and interlude screens.
 
 ## Run
 
@@ -25,7 +30,7 @@ npm run build      # static build in dist/
 | Shoot | Z (hold) | A / RT | Automatic |
 | Focus | Shift (hold) | LB / RB / LT | Focus button (toggle) or a second finger |
 | Litany (bomb) | X | B | Litany button |
-| Vigil (skill) | C | X / Y | Vigil button |
+| Skill | C | X / Y | Skill button |
 | Advance dialogue | Z / Enter | A | Tap |
 | Pause | Esc / P | Start | ❚❚ |
 
@@ -33,6 +38,7 @@ npm run build      # static build in dist/
 
 URL flags (for testing):
 - `?midboss` / `?boss`: start at that point of Stage 1
+- `?char=sayo|ilse|tessel|wren`: skip character select
 - `?diff=0..3`: skip the difficulty screen
 - `?god`: invincible
 - `?debug`: stats overlay

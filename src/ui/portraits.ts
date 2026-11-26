@@ -5,11 +5,23 @@ import type { Speaker } from '../game/defs';
  * expressions swap only eyes, brows and mouth. Drawn in a 240×320 box.
  */
 
+/** Every expression each portrait can draw (anything else falls back to neutral). */
+export const EXPRESSIONS: Record<Speaker, readonly string[]> = {
+  sayo: ['neutral', 'tired', 'annoyed', 'soft', 'surprised', 'smirk'],
+  ilse: ['neutral', 'grin', 'smug', 'annoyed', 'surprised', 'sad'],
+  tessel: ['neutral', 'curious', 'smile', 'blank', 'sad', 'surprised'],
+  wren: ['neutral', 'soft', 'wry', 'sad', 'stern', 'tired'],
+  hoshiko: ['neutral', 'happy', 'curious', 'proud', 'determined', 'hurt', 'sad'],
+};
+
 export const PORTRAIT_W = 240;
 export const PORTRAIT_H = 320;
 
 export const SPEAKER_NAMES: Record<Speaker, string> = {
   sayo: 'Sayo Kagari',
+  ilse: 'Ilse Marrow',
+  tessel: 'Tessel',
+  wren: 'Sister Wren',
   hoshiko: 'Hoshiko Aze',
 };
 
@@ -341,8 +353,343 @@ function drawHoshiko(c: Ctx, expr: string) {
   }
 }
 
+
+// ─────────────────────────────── shared face parts ───────────────────────────────
+
+type EyeKind = 'open' | 'half' | 'closed' | 'wide' | 'smile' | 'down';
+
+function eyes(c: Ctx, xs: readonly number[], y: number, kind: EyeKind, skin: string, iris: readonly string[], ink: string) {
+  xs.forEach((x, i) => {
+    if (kind === 'closed' || kind === 'down') {
+      curve(c, x - 11, y, x, y + (kind === 'closed' ? 7 : -4), x + 11, y, ink, 3);
+      return;
+    }
+    if (kind === 'smile') {
+      curve(c, x - 11, y + 3, x, y - 7, x + 11, y + 3, ink, 3.5);
+      return;
+    }
+    const ry = kind === 'wide' ? 10 : 8;
+    ell(c, x, y, 11, ry, '#fbf6ff');
+    ell(c, x, y + 1, 6.5, ry - 1, iris[i % iris.length]);
+    ell(c, x, y + 2, 3, 3.5, '#120c16');
+    ell(c, x + 2.5, y - 2, 2, 2, '#ffffff');
+    if (kind === 'half') {
+      c.fillStyle = skin;
+      c.fillRect(x - 13, y - 12, 26, 11);
+      line(c, [x - 12, y - 1, x + 12, y - 1], ink, 3);
+    } else {
+      curve(c, x - 12, y - 3, x, y - 12 - (kind === 'wide' ? 3 : 0), x + 12, y - 3, ink, 3);
+    }
+  });
+}
+
+function brows(c: Ctx, y: number, tilt: number, ink: string, lift = 0) {
+  line(c, [88, y + tilt - lift, 110, y - tilt - lift], ink, 2.5);
+  line(c, [130, y - tilt - lift, 152, y + tilt - lift], ink, 2.5);
+}
+
+function bust(c: Ctx, robe: string, skin: string) {
+  c.fillStyle = robe;
+  c.beginPath();
+  c.moveTo(20, 320);
+  c.quadraticCurveTo(34, 244, 96, 226);
+  c.lineTo(144, 226);
+  c.quadraticCurveTo(206, 244, 220, 320);
+  c.closePath();
+  c.fill();
+  c.fillStyle = skin;
+  c.fillRect(108, 186, 24, 44);
+  ell(c, 120, 142, 46, 54, skin);
+}
+
+// ─────────────────────────────── Ilse ───────────────────────────────
+
+const ILSE_SKIN = '#f2d8c4';
+const ILSE_HAIR = '#18203c';
+
+function ilseBase(c: Ctx) {
+  // Compass head peeking over her shoulder.
+  line(c, [176, 320, 198, 150, 214, 320], '#c9a24a', 6);
+  ell(c, 198, 150, 9, 9, '#ffd36a');
+  bust(c, '#1c2446', ILSE_SKIN);
+  // Gold-trimmed lapels.
+  c.fillStyle = '#e0b04a';
+  c.beginPath();
+  c.moveTo(96, 226);
+  c.lineTo(116, 300);
+  c.lineTo(108, 300);
+  c.lineTo(88, 232);
+  c.closePath();
+  c.moveTo(144, 226);
+  c.lineTo(124, 300);
+  c.lineTo(132, 300);
+  c.lineTo(152, 232);
+  c.closePath();
+  c.fill();
+  // Ink stains on the collar: she is always mid-map.
+  ell(c, 70, 270, 6, 4, '#0c1024');
+  ell(c, 80, 262, 3, 2, '#0c1024');
+  // Short, choppy bob.
+  c.fillStyle = ILSE_HAIR;
+  c.beginPath();
+  c.moveTo(70, 176);
+  c.quadraticCurveTo(58, 80, 120, 78);
+  c.quadraticCurveTo(184, 80, 170, 176);
+  c.lineTo(160, 150);
+  c.lineTo(162, 116);
+  c.lineTo(148, 104);
+  c.lineTo(132, 122);
+  c.lineTo(122, 100);
+  c.lineTo(104, 124);
+  c.lineTo(92, 106);
+  c.lineTo(78, 120);
+  c.lineTo(80, 150);
+  c.closePath();
+  c.fill();
+  // Goggles pushed up into her hair.
+  line(c, [72, 100, 168, 100], '#6a5030', 5);
+  for (const x of [102, 138]) {
+    ell(c, x, 98, 15, 11, '#6a5030');
+    ell(c, x, 98, 11, 8, '#ffd36a');
+    ell(c, x + 3, 95, 3, 2, '#fff6d0');
+  }
+  // Pen tucked behind an ear.
+  line(c, [164, 150, 186, 118], '#e0b04a', 3);
+}
+
+function drawIlse(c: Ctx, expr: string) {
+  paperShadow(c, () => ilseBase(c));
+  const ink = ILSE_HAIR;
+  const iris = ['#3a4a8a'];
+  const mouth = '#a0505a';
+  switch (expr) {
+    case 'grin':
+      eyes(c, [100, 140], 150, 'smile', ILSE_SKIN, iris, ink);
+      brows(c, 130, 0, ink, 3);
+      c.fillStyle = '#ffffff';
+      c.beginPath();
+      c.moveTo(106, 176);
+      c.quadraticCurveTo(120, 194, 136, 174);
+      c.closePath();
+      c.fill();
+      curve(c, 106, 176, 120, 194, 136, 174, mouth, 2.5);
+      break;
+    case 'smug':
+      eyes(c, [100, 140], 150, 'half', ILSE_SKIN, iris, ink);
+      line(c, [88, 130, 110, 131], ink, 2.5);
+      line(c, [130, 126, 152, 122], ink, 2.5);
+      curve(c, 108, 180, 124, 184, 136, 172, mouth, 2.5);
+      break;
+    case 'annoyed':
+      eyes(c, [100, 140], 150, 'half', ILSE_SKIN, iris, ink);
+      brows(c, 132, -4, ink);
+      line(c, [110, 182, 130, 180], mouth, 2.5);
+      break;
+    case 'surprised':
+      eyes(c, [100, 140], 150, 'wide', ILSE_SKIN, iris, ink);
+      brows(c, 124, 1, ink, 4);
+      ell(c, 120, 182, 5, 6, mouth);
+      break;
+    case 'sad':
+      eyes(c, [100, 140], 152, 'down', ILSE_SKIN, iris, ink);
+      brows(c, 132, 4, ink);
+      curve(c, 110, 184, 120, 178, 130, 184, mouth, 2.5);
+      break;
+    default:
+      eyes(c, [100, 140], 150, 'open', ILSE_SKIN, iris, ink);
+      brows(c, 130, 0, ink);
+      curve(c, 110, 179, 120, 183, 130, 179, mouth, 2.5);
+  }
+}
+
+// ─────────────────────────────── Tessel ───────────────────────────────
+
+const TESSEL_SKIN = '#f6f0ea';
+const TESSEL_HAIR = '#5a4038';
+
+function tesselBase(c: Ctx) {
+  // Ringlets behind.
+  c.fillStyle = TESSEL_HAIR;
+  for (const s of [-1, 1]) {
+    for (let i = 0; i < 3; i++) {
+      c.beginPath();
+      c.ellipse(120 + s * (54 + i * 6), 180 + i * 34, 14, 22, s * 0.2, 0, Math.PI * 2);
+      c.fill();
+    }
+  }
+  bust(c, '#8a3b2a', TESSEL_SKIN);
+  // Lace collar.
+  c.fillStyle = '#f2ece4';
+  for (let i = 0; i < 7; i++) ell(c, 90 + i * 10, 232, 8, 7, '#f2ece4');
+  // Hair and a large rust bow.
+  c.fillStyle = TESSEL_HAIR;
+  c.beginPath();
+  c.moveTo(72, 150);
+  c.quadraticCurveTo(64, 82, 120, 80);
+  c.quadraticCurveTo(176, 82, 168, 150);
+  c.quadraticCurveTo(150, 104, 120, 104);
+  c.quadraticCurveTo(90, 104, 72, 150);
+  c.fill();
+  c.fillStyle = '#b04848';
+  c.beginPath();
+  c.moveTo(120, 78);
+  c.lineTo(78, 52);
+  c.lineTo(84, 96);
+  c.closePath();
+  c.moveTo(120, 78);
+  c.lineTo(162, 52);
+  c.lineTo(156, 96);
+  c.closePath();
+  c.fill();
+  ell(c, 120, 78, 9, 9, '#8a3030');
+  // Porcelain hairline crack and jaw seam.
+  line(c, [148, 108, 142, 128, 152, 140, 146, 152], 'rgba(110,90,90,0.55)', 1.5);
+  curve(c, 82, 170, 120, 204, 158, 170, 'rgba(150,130,130,0.35)', 1.5);
+  // Rosy painted cheeks.
+  ell(c, 92, 168, 9, 5, 'rgba(230,120,130,0.35)');
+  ell(c, 148, 168, 9, 5, 'rgba(230,120,130,0.35)');
+}
+
+function drawTessel(c: Ctx, expr: string) {
+  paperShadow(c, () => tesselBase(c));
+  const ink = '#3a2a2a';
+  // One glass-blue eye, one amber: they were never a pair.
+  const iris = ['#3a8ae0', '#e0a040'];
+  const mouth = '#b05a60';
+  switch (expr) {
+    case 'curious':
+      eyes(c, [100, 140], 148, 'wide', TESSEL_SKIN, iris, ink);
+      line(c, [88, 128, 110, 126], ink, 2);
+      line(c, [130, 122, 152, 120], ink, 2);
+      ell(c, 120, 182, 3, 3, mouth);
+      break;
+    case 'smile':
+      eyes(c, [100, 140], 148, 'open', TESSEL_SKIN, iris, ink);
+      brows(c, 128, 0, ink);
+      curve(c, 110, 178, 120, 186, 130, 178, mouth, 2.5);
+      break;
+    case 'blank':
+      // Perfectly still: the doll face she wears when she is listening to her parts.
+      eyes(c, [100, 140], 148, 'open', TESSEL_SKIN, ['#9a9aa8', '#9a9aa8'], ink);
+      line(c, [114, 181, 126, 181], mouth, 2);
+      break;
+    case 'sad':
+      eyes(c, [100, 140], 150, 'half', TESSEL_SKIN, iris, ink);
+      brows(c, 130, 4, ink);
+      curve(c, 112, 184, 120, 180, 128, 184, mouth, 2.5);
+      ell(c, 142, 166, 3, 5, 'rgba(140,190,255,0.75)');
+      break;
+    case 'surprised':
+      eyes(c, [100, 140], 148, 'wide', TESSEL_SKIN, iris, ink);
+      brows(c, 124, 0, ink, 4);
+      ell(c, 120, 183, 4, 5, mouth);
+      break;
+    default:
+      eyes(c, [100, 140], 148, 'open', TESSEL_SKIN, iris, ink);
+      brows(c, 128, 0, ink);
+      line(c, [114, 180, 126, 180], mouth, 2.5);
+  }
+}
+
+// ─────────────────────────────── Wren ───────────────────────────────
+
+const WREN_SKIN = '#efdccb';
+const WREN_VEIL = '#1e2a30';
+
+function wrenBase(c: Ctx) {
+  // The oar-scythe's blade over her shoulder.
+  line(c, [36, 320, 40, 60], '#4a3a30', 7);
+  c.fillStyle = '#9ad8d0';
+  c.beginPath();
+  c.moveTo(40, 60);
+  c.quadraticCurveTo(100, 30, 130, 64);
+  c.quadraticCurveTo(90, 52, 42, 84);
+  c.closePath();
+  c.fill();
+  // Veil falling behind.
+  c.fillStyle = WREN_VEIL;
+  c.beginPath();
+  c.moveTo(62, 140);
+  c.quadraticCurveTo(58, 62, 120, 58);
+  c.quadraticCurveTo(182, 62, 178, 140);
+  c.lineTo(200, 300);
+  c.lineTo(40, 300);
+  c.closePath();
+  c.fill();
+  bust(c, '#e8e2d6', WREN_SKIN);
+  c.fillStyle = '#2aa89a';
+  c.fillRect(114, 236, 12, 84);
+  // Bell on a cord.
+  line(c, [150, 236, 166, 276], '#6a5030', 2);
+  c.fillStyle = '#c9a24a';
+  c.beginPath();
+  c.moveTo(166, 272);
+  c.quadraticCurveTo(182, 272, 184, 300);
+  c.lineTo(148, 300);
+  c.quadraticCurveTo(150, 272, 166, 272);
+  c.fill();
+  ell(c, 166, 302, 4, 4, '#8a6a2a');
+  // Wimple band framing the face.
+  c.fillStyle = '#e8e2d6';
+  c.beginPath();
+  c.moveTo(72, 120);
+  c.quadraticCurveTo(120, 84, 168, 120);
+  c.lineTo(166, 108);
+  c.quadraticCurveTo(120, 72, 74, 108);
+  c.closePath();
+  c.fill();
+  // A few grey strands escaping the veil.
+  line(c, [84, 118, 80, 150], '#b8b0b8', 2);
+  line(c, [156, 118, 162, 146], '#b8b0b8', 2);
+}
+
+function drawWren(c: Ctx, expr: string) {
+  paperShadow(c, () => wrenBase(c));
+  const ink = '#2a2020';
+  const iris = ['#2a8a80'];
+  const mouth = '#9a5050';
+  switch (expr) {
+    case 'soft':
+      eyes(c, [100, 140], 150, 'closed', WREN_SKIN, iris, ink);
+      brows(c, 132, 1, ink);
+      curve(c, 110, 178, 120, 184, 130, 178, mouth, 2.5);
+      break;
+    case 'wry':
+      eyes(c, [100, 140], 150, 'half', WREN_SKIN, iris, ink);
+      line(c, [88, 131, 110, 131], ink, 2.5);
+      line(c, [130, 128, 152, 125], ink, 2.5);
+      curve(c, 108, 181, 122, 183, 134, 175, mouth, 2.5);
+      break;
+    case 'sad':
+      eyes(c, [100, 140], 152, 'down', WREN_SKIN, iris, ink);
+      brows(c, 132, 5, ink);
+      curve(c, 110, 184, 120, 179, 130, 184, mouth, 2.5);
+      break;
+    case 'stern':
+      eyes(c, [100, 140], 150, 'open', WREN_SKIN, iris, ink);
+      brows(c, 132, -4, ink);
+      line(c, [110, 181, 130, 181], mouth, 3);
+      break;
+    case 'tired':
+      eyes(c, [100, 140], 151, 'half', WREN_SKIN, iris, ink);
+      brows(c, 133, 2, ink);
+      line(c, [112, 181, 128, 181], mouth, 2.5);
+      // Faint lines under the eyes: a long career of goodbyes.
+      curve(c, 92, 164, 100, 167, 108, 164, 'rgba(120,90,90,0.35)', 1.5);
+      curve(c, 132, 164, 140, 167, 148, 164, 'rgba(120,90,90,0.35)', 1.5);
+      break;
+    default:
+      eyes(c, [100, 140], 150, 'open', WREN_SKIN, iris, ink);
+      brows(c, 132, 0, ink);
+      curve(c, 111, 180, 120, 183, 129, 180, mouth, 2.5);
+  }
+}
+
 const DRAW: Record<Speaker, (c: Ctx, expr: string) => void> = {
   sayo: drawSayo,
+  ilse: drawIlse,
+  tessel: drawTessel,
+  wren: drawWren,
   hoshiko: drawHoshiko,
 };
 
